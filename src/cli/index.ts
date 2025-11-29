@@ -2,6 +2,8 @@
 import { Command } from 'commander';
 
 import { loadConfig } from '../config/loadConfig';
+import { scanFiles } from '../parser/fileScanner';
+import { parseProject } from '../parser/tsParser';
 
 interface AnalyzeOptions {
   config?: string;
@@ -25,7 +27,7 @@ program
   .option('--namespace <name>', 'Analyze a specific namespace by name')
   .option('--ci', 'Run in CI mode with JSON output and strict exit codes')
   .argument('[target]', 'Optional module/file path to analyze')
-  .action((target: string | undefined, options: AnalyzeOptions) => {
+  .action(async (target: string | undefined, options: AnalyzeOptions) => {
     try {
       const config = loadConfig(options.config);
 
@@ -50,8 +52,47 @@ program
         console.log(`  Analysis scope: ${config.analysis.target} = ${config.analysis.value}`);
       }
 
-      // TODO: Phase 3+ - Actual analysis implementation
-      console.log('\n[Phase 2] Config system ready. Analysis implementation pending.');
+      // Phase 3: Scan and parse files
+      console.log('\n📁 Scanning files...');
+      const files = await scanFiles(config);
+      console.log(`✓ Found ${files.length} TypeScript files`);
+
+      if (files.length === 0) {
+        console.log('\n⚠ No files found matching the configured patterns.');
+        process.exitCode = 0;
+        return;
+      }
+
+      console.log('\n📝 Parsing modules...');
+      const modules = parseProject(files);
+      console.log(`✓ Parsed ${modules.length} modules`);
+
+      // Display summary
+      const totalImports = modules.reduce((sum, m) => sum + m.imports.length, 0);
+      const totalExports = modules.reduce((sum, m) => sum + m.exports.length, 0);
+      const totalClasses = modules.reduce((sum, m) => sum + m.classes.length, 0);
+      const totalInterfaces = modules.reduce((sum, m) => sum + m.interfaces, 0);
+
+      console.log('\n📊 Summary:');
+      console.log(`  Total imports: ${totalImports}`);
+      console.log(`  Total exports: ${totalExports}`);
+      console.log(`  Total classes: ${totalClasses}`);
+      console.log(`  Total interfaces: ${totalInterfaces}`);
+
+      // Show sample of first few modules
+      if (modules.length > 0) {
+        console.log('\n📄 Sample modules:');
+        for (const mod of modules.slice(0, 3)) {
+          const fileName = mod.filePath.split('/').pop();
+          console.log(
+            `  - ${fileName}: ${mod.imports.length} imports, ${mod.exports.length} exports`,
+          );
+        }
+        if (modules.length > 3) {
+          console.log(`  ... and ${modules.length - 3} more`);
+        }
+      }
+
       process.exitCode = 0;
     } catch (error) {
       console.error('Error:', error instanceof Error ? error.message : String(error));
