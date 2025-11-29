@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { DependencyGraph } from '../graph/dependencyGraph';
 import { detectCycles } from '../graph/cycleDetector';
-import { computeCouplingMetrics } from '../metrics/coupling';
+import { computeAllMetrics } from '../metrics';
 import type { ParsedModule } from '../types/parser';
 
 function createModule(filePath: string, imports: string[] = []): ParsedModule {
@@ -59,7 +59,7 @@ describe('Coupling Metrics', () => {
 
     const graph = new DependencyGraph(modules);
     const cycles = detectCycles(graph);
-    const metrics = computeCouplingMetrics(graph, cycles);
+    const metrics = computeAllMetrics(graph, modules, cycles);
 
     const metricsA = metrics.find((m) => m.filePath === '/src/a.ts')!;
     const metricsB = metrics.find((m) => m.filePath === '/src/b.ts')!;
@@ -145,7 +145,7 @@ describe('Cycle Detection', () => {
 
     const graph = new DependencyGraph(modules);
     const cycles = detectCycles(graph);
-    const metrics = computeCouplingMetrics(graph, cycles);
+    const metrics = computeAllMetrics(graph, modules, cycles);
 
     const metricsA = metrics.find((m) => m.filePath === '/src/a.ts')!;
     const metricsC = metrics.find((m) => m.filePath === '/src/c.ts')!;

@@ -4,9 +4,92 @@ import { Command } from 'commander';
 import { loadConfig } from '../config/loadConfig';
 import { DependencyGraph } from '../graph/dependencyGraph';
 import { detectCycles } from '../graph/cycleDetector';
-import { computeCouplingMetrics } from '../metrics/coupling';
+import { computeAllMetrics } from '../metrics';
 import { scanFiles } from '../parser/fileScanner';
 import { parseProject } from '../parser/tsParser';
+import type { ModuleMetrics } from '../types/graph';
+
+function getZoneLabel(abstractness: number, instability: number): string {
+  if (abstractness < 0.5 && instability < 0.5) return ' (Zone of Pain)';
+  if (abstractness > 0.5 && instability > 0.5) return ' (Zone of Uselessness)';
+  return '';
+}
+
+function displayTopMetrics(metrics: ModuleMetrics[]): void {
+  const sortedByCa = [...metrics].sort((a, b) => b.Ca - a.Ca);
+  const sortedByCe = [...metrics].sort((a, b) => b.Ce - a.Ce);
+  const sortedByDistance = [...metrics].sort((a, b) => b.distance - a.distance);
+  const topCa = sortedByCa.slice(0, 3);
+  const topCe = sortedByCe.slice(0, 3);
+  const topDistance = sortedByDistance.slice(0, 5);
+
+  if (topCa.length > 0) {
+    console.log('\n📥 Top modules by Ca (Afferent Coupling):');
+    for (const m of topCa) {
+      const fileName = m.filePath.split('/').pop();
+      console.log(`  - ${fileName}: Ca=${m.Ca}, Ce=${m.Ce}`);
+    }
+  }
+
+  if (topCe.length > 0) {
+    console.log('\n📤 Top modules by Ce (Efferent Coupling):');
+    for (const m of topCe) {
+      const fileName = m.filePath.split('/').pop();
+      console.log(`  - ${fileName}: Ca=${m.Ca}, Ce=${m.Ce}`);
+    }
+  }
+
+  if (topDistance.length > 0) {
+    console.log('\n📏 Modules by Distance from Main Sequence:');
+    for (const m of topDistance) {
+      const fileName = m.filePath.split('/').pop();
+      const zone = getZoneLabel(m.abstractness, m.instability);
+      console.log(
+        `  - ${fileName}: D=${m.distance.toFixed(2)}, A=${m.abstractness.toFixed(2)}, I=${m.instability.toFixed(2)}${zone}`,
+      );
+    }
+  }
+}
+
+function checkDistanceThreshold(
+  metrics: ModuleMetrics[],
+  threshold: number,
+  failOnThreshold: boolean,
+): boolean {
+  const violators = metrics.filter((m) => m.distance > threshold);
+
+  if (violators.length > 0) {
+    console.log(
+      `\n⚠️  ${violators.length} module(s) exceed distance threshold (${threshold}):`,
+    );
+    for (const m of violators.slice(0, 5)) {
+      const fileName = m.filePath.split('/').pop();
+      console.log(`  - ${fileName}: D=${m.distance.toFixed(2)}`);
+    }
+    if (violators.length > 5) {
+      console.log(`  ... and ${violators.length - 5} more`);
+    }
+
+    if (failOnThreshold) {
+      console.error('\n❌ Error: Modules exceed distance threshold');
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function checkCyclesAndFail(cycles: string[][], failOnCycle: boolean): boolean {
+  if (cycles.length > 0 && failOnCycle) {
+    console.error('\n❌ Error: Cycles detected in dependency graph');
+    for (const cycle of cycles) {
+      const fileNames = cycle.map((p) => p.split('/').pop()).join(' → ');
+      console.error(`  - ${fileNames}`);
+    }
+    return true;
+  }
+  return false;
+}
 
 interface AnalyzeOptions {
   config?: string;
@@ -78,21 +161,13 @@ program
       const cycles = detectCycles(graph);
       console.log(`✓ Found ${cycles.length} cycle(s)`);
 
-      if (cycles.length > 0 && config.ci.failOnCycle) {
-        console.error('\n❌ Error: Cycles detected in dependency graph');
-        for (const cycle of cycles.slice(0, 5)) {
-          const fileNames = cycle.map((p) => p.split('/').pop()).join(' → ');
-          console.error(`  - ${fileNames}`);
-        }
-        if (cycles.length > 5) {
-          console.error(`  ... and ${cycles.length - 5} more`);
-        }
+      if (checkCyclesAndFail(cycles, config.ci.failOnCycle)) {
         process.exitCode = 1;
         return;
       }
 
-      console.log('\n📐 Computing coupling metrics...');
-      const metrics = computeCouplingMetrics(graph, cycles);
+      console.log('\n📐 Computing metrics...');
+      const metrics = computeAllMetrics(graph, modules, cycles);
       console.log('✓ Metrics computed');
 
       const totalImports = modules.reduce((sum, m) => sum + m.imports.length, 0);
@@ -115,25 +190,17 @@ program
         }
       }
 
-      const sortedByCa = [...metrics].sort((a, b) => b.Ca - a.Ca);
-      const sortedByCe = [...metrics].sort((a, b) => b.Ce - a.Ce);
-      const topCa = sortedByCa.slice(0, 3);
-      const topCe = sortedByCe.slice(0, 3);
+      displayTopMetrics(metrics);
 
-      if (topCa.length > 0) {
-        console.log('\n📥 Top modules by Ca (Afferent Coupling):');
-        for (const m of topCa) {
-          const fileName = m.filePath.split('/').pop();
-          console.log(`  - ${fileName}: Ca=${m.Ca}, Ce=${m.Ce}`);
-        }
-      }
+      const shouldFail = checkDistanceThreshold(
+        metrics,
+        config.metrics.thresholds.distance,
+        config.ci.failOnThreshold,
+      );
 
-      if (topCe.length > 0) {
-        console.log('\n📤 Top modules by Ce (Efferent Coupling):');
-        for (const m of topCe) {
-          const fileName = m.filePath.split('/').pop();
-          console.log(`  - ${fileName}: Ca=${m.Ca}, Ce=${m.Ce}`);
-        }
+      if (shouldFail) {
+        process.exitCode = 1;
+        return;
       }
 
       process.exitCode = 0;

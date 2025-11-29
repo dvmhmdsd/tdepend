@@ -9,4 +9,7 @@ export interface ModuleMetrics {
   Ca: number;
   Ce: number;
   cycles: string[][];
+  abstractness: number;
+  instability: number;
+  distance: number;
 }
