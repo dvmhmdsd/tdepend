@@ -28,9 +28,10 @@ export const configSchema = z.object({
   ci: z
     .object({
       failOnThreshold: z.boolean().default(true),
+      failOnCycle: z.boolean().default(false),
       outputFormat: z.literal('json').default('json'),
     })
-    .default({ failOnThreshold: true, outputFormat: 'json' }),
+    .default({ failOnThreshold: true, failOnCycle: false, outputFormat: 'json' }),
 });
 
 export type TDependConfig = z.infer<typeof configSchema>;
@@ -51,6 +52,7 @@ export const defaultConfig: TDependConfig = {
   },
   ci: {
     failOnThreshold: true,
+    failOnCycle: false,
     outputFormat: 'json',
   },
 };
