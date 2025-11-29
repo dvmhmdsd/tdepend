@@ -18,19 +18,19 @@ MVP Phase 1: Project bootstrap with CLI skeleton.
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Build
-npm run build
+pnpm run build
 
 # Run CLI help
-npx tdepend analyze --help
+pnpm exec tdepend analyze --help
 
 # Or via node
 node dist/cli/index.js analyze --help
 
 # Test
-npm test
+pnpm test
 ```
 
 ## Project Structure
@@ -43,9 +43,9 @@ src/
   metrics/
   analysis/
   utils/
+  tests/
 
 types/
-tests/
 dist/
 ```
 
