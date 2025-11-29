@@ -2,44 +2,44 @@
 
 TDepend is a JDepend-inspired dependency analysis tool for the TypeScript ecosystem.
 
-## Goals
-- Parse TypeScript projects
-- Build module-level dependency graph
-- Compute architectural metrics (Ca, Ce, Abstractness, Instability, Distance)
-- Detect cycles
-- Allow scoped analysis (module / namespace / class)
-- Fully config-driven
-- Supports CI mode
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Status
-- ✅ Phase 1: Project bootstrap with CLI skeleton
-- ✅ Phase 2: Config system with Zod validation
+## Features
+
+- 📊 Compute architectural metrics (Ca, Ce, Abstractness, Instability, Distance)
+- 🔄 Detect circular dependencies
+- 📏 Threshold-based quality gates for CI/CD
+- 🎯 Scoped analysis (module/namespace/class)
+- ⚙️ Fully config-driven with sensible defaults
+- 🚀 CI mode with JSON output
+- 📦 Zero runtime dependencies for analysis
+
+## Installation
+
+```bash
+npm install -g tdepend
+# or
+pnpm add -g tdepend
+# or
+yarn global add tdepend
+```
 
 ## Quick Start
 
 ```bash
-# Install dependencies
-pnpm install
-
-# Build
-pnpm run build
-
-# Run CLI help
-pnpm exec tdepend analyze --help
-
-# Analyze with default config
-pnpm exec tdepend analyze
+# Analyze your TypeScript project
+tdepend analyze
 
 # Use custom config file
-pnpm exec tdepend analyze --config my-config.json
+tdepend analyze --config my-config.json
 
-# Test
-pnpm test
+# CI mode with JSON output
+tdepend analyze --ci
 ```
 
 ## Configuration
 
-TDepend looks for `tdepend.config.json` in the current directory. You can also specify a custom config path using the `--config` flag.
+TDepend looks for `tdepend.config.json` in the current directory.
 
 ### Config File Example
 
@@ -75,37 +75,39 @@ TDepend looks for `tdepend.config.json` in the current directory. You can also s
 - **analysis.target**: Scope analysis to `"module"`, `"class"`, or `"namespace"` (default: `null`)
 - **analysis.value**: Value for the target scope (default: `null`)
 - **ci.failOnThreshold**: Exit with code 1 on threshold violations (default: `true`)
-- **ci.outputFormat**: Output format for CI mode (default: `"json"`)
+- **ci.failOnCycle**: Exit with code 1 when cycles are detected (default: `false`)
+- **ci.outputFormat**: Output format - `"console"` or `"json"` (default: `"console"`)
 
-### CLI Overrides
-
-You can override config settings via CLI flags:
+## Development
 
 ```bash
-# Analyze a specific module
-pnpm exec tdepend analyze src/utils/helper.ts
+# Install dependencies
+pnpm install
 
-# Analyze a specific class
-pnpm exec tdepend analyze --class UserService
+# Build
+pnpm run build
 
-# Analyze a specific namespace
-pnpm exec tdepend analyze --namespace App.Services
+# Run tests
+pnpm test
+
+# Format code
+pnpm format
 ```
 
 ## Project Structure
 ```
 src/
-  cli/
-  config/
-  parser/
-  graph/
-  metrics/
-  analysis/
-  utils/
-  tests/
+  cli/           # CLI entry point
+  config/        # Configuration loading and validation
+  parser/        # TypeScript file parsing
+  graph/         # Dependency graph and cycle detection
+  metrics/       # Metric computation
+  analysis/      # Reporting
+  utils/         # Utilities
+  tests/         # Test files
+  types/         # Type definitions
 
-types/
-dist/
+dist/            # Compiled output
 ```
 
 ## License

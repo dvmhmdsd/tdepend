@@ -1,0 +1,16 @@
+src/
+tests/
+*.test.ts
+*.spec.ts
+tsconfig.json
+vitest.config.ts
+.git/
+.github/
+node_modules/
+pnpm-lock.yaml
+.prettierrc
+.eslintrc
+*.log
+.DS_Store
+coverage/
+.vscode/

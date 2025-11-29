@@ -1,28 +1,53 @@
 {
   "name": "tdepend",
   "version": "0.1.0",
-  "private": true,
-  "description": "TDepend: JDepend-inspired dependency analysis tool for TypeScript",
+  "description": "JDepend-inspired dependency analysis tool for TypeScript",
+  "main": "dist/cli/index.js",
   "bin": {
     "tdepend": "dist/cli/index.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "ts-node src/cli/index.ts analyze --help",
     "cli": "node dist/cli/index.js",
     "test": "vitest run",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "prepublishOnly": "pnpm test && pnpm run build"
   },
   "keywords": [
     "dependency",
     "analysis",
     "typescript",
-    "cli"
+    "cli",
+    "jdepend",
+    "metrics",
+    "architecture",
+    "coupling",
+    "abstractness",
+    "instability",
+    "dependency-analysis",
+    "code-quality"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dvmhmdsd/tdepend.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dvmhmdsd/tdepend/issues"
+  },
+  "homepage": "https://github.com/dvmhmdsd/tdepend#readme",
   "author": "",
   "license": "MIT",
   "packageManager": "pnpm@8.15.4",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "dependencies": {
     "commander": "^12.0.0",
     "glob": "^13.0.0",
