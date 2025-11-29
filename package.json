@@ -42,7 +42,7 @@
     "url": "https://github.com/dvmhmdsd/tdepend/issues"
   },
   "homepage": "https://github.com/dvmhmdsd/tdepend#readme",
-  "author": "",
+  "author": "Mohamed Saad <mohamed.tarif999@gmail.com>",
   "license": "MIT",
   "packageManager": "pnpm@8.15.4",
   "engines": {
