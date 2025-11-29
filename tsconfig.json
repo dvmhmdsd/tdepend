@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "outDir": "dist",
+    "rootDir": "src",
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "sourceMap": true,
+    "types": ["node"],
+    "lib": ["ES2020"]
+  },
+  "include": ["src", "types"],
+  "exclude": ["node_modules", "dist", "tests"]
+}

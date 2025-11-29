@@ -1,0 +1,29 @@
+# Node
+node_modules/
+
+# Build outputs
+dist/
+coverage/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Editor/OS
+.DS_Store
+.vscode/
+.idea/
+
+# Env files
+.env
+.env.local
+.env.*.local
+
+# TypeScript
+*.tsbuildinfo
+
+# Vitest / Vite
+.vite/
+**/.vitest
