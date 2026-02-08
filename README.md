@@ -26,6 +26,8 @@ yarn global add tdepend
 
 ## Quick Start
 
+### CLI Usage
+
 ```bash
 # Analyze your TypeScript project
 tdepend analyze
@@ -35,7 +37,55 @@ tdepend analyze --config my-config.json
 
 # CI mode with JSON output
 tdepend analyze --ci
+
+# Export full analysis to JSON file
+tdepend analyze --export analysis-result.json
 ```
+
+### Library Usage
+
+TDepend can also be used programmatically as a library:
+
+```typescript
+import { analyze, exportToFile } from 'tdepend';
+
+// Analyze a project
+const result = await analyze({
+  rootDir: 'src',
+  include: ['src/**/*.ts'],
+  failOnCycle: true
+});
+
+console.log(`Analyzed ${result.modules.length} modules`);
+console.log(`Found ${result.cycles.length} cycles`);
+
+// Export results to JSON
+await exportToFile(result, 'architecture-snapshot.json');
+
+// Access detailed metrics
+for (const metric of result.metrics) {
+  if (metric.distance > 0.8) {
+    console.log(`${metric.filePath}: D=${metric.distance.toFixed(2)}`);
+  }
+}
+```
+
+#### API Reference
+
+**Main Functions:**
+- `analyze(options?)` - Analyze a TypeScript project
+- `analyzeWithConfig(config)` - Analyze using a full config object
+- `exportToFile(result, filePath, options?)` - Export analysis to JSON file
+- `exportToJson(result, options?)` - Convert analysis to JSON string
+
+**Core Building Blocks:**
+- `DependencyGraph` - Graph data structure
+- `detectCycles(graph)` - Cycle detection
+- `computeAllMetrics(graph, modules, cycles)` - Metric computation
+- `parseProject(files)` - Parse TypeScript files
+- `scanFiles(config)` - Scan files matching patterns
+
+See the [examples](./examples) directory for more usage patterns.
 
 ## Configuration
 
@@ -97,6 +147,7 @@ pnpm format
 ## Project Structure
 ```
 src/
+  api/           # Public library API
   cli/           # CLI entry point
   config/        # Configuration loading and validation
   parser/        # TypeScript file parsing
@@ -106,8 +157,10 @@ src/
   utils/         # Utilities
   tests/         # Test files
   types/         # Type definitions
+  index.ts       # Library entry point
 
 dist/            # Compiled output
+examples/        # Usage examples
 ```
 
 ## License
