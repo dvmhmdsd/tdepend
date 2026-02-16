@@ -1,7 +1,10 @@
 src/
 tests/
+dist/tests/
 *.test.ts
 *.spec.ts
+*.test.js
+*.spec.js
 tsconfig.json
 vitest.config.ts
 .git/
