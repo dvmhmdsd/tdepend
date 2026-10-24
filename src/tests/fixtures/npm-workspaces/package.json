@@ -1,0 +1,8 @@
+{
+  "name": "npm-workspaces",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "vite-tanstack-router",
+  "private": true,
+  "dependencies": {
+    "react": "^19.0.0",
+    "@tanstack/react-router": "^1.0.0"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0"
+  }
+}
