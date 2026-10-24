@@ -1,0 +1,7 @@
+{
+  "name": "@demo/admin",
+  "private": true,
+  "dependencies": {
+    "next": "^15.0.0"
+  }
+}

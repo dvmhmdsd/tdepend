@@ -1,0 +1,7 @@
+{
+  "name": "@demo/cli",
+  "private": true,
+  "dependencies": {
+    "commander": "^15.0.0"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "pnpm-settings-only",
+  "private": true,
+  "devDependencies": {
+    "vite": "^7.0.0"
+  }
+}
