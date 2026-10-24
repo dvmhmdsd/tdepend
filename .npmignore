@@ -6,7 +6,7 @@ dist/tests/
 *.test.js
 *.spec.js
 tsconfig.json
-vitest.config.ts
+vitest.config.mts
 .git/
 .github/
 node_modules/

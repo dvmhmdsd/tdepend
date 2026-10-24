@@ -27,3 +27,11 @@ yarn-error.log*
 # Vitest / Vite
 .vite/
 **/.vitest
+
+# Local planning and internal evidence (never published)
+docs/superpowers/
+session-context.md
+tdepend-analysis.json
+test-npm-token.sh
+.npmrc*
+.commandcode/
