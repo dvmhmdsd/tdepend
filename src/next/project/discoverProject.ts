@@ -1,5 +1,4 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { basename, isAbsolute, join, relative } from 'node:path';
 
 import picomatch from 'picomatch';
@@ -8,17 +7,17 @@ import { parse as parseYaml } from 'yaml';
 
 import { ConfigError } from '../errors';
 import {
-  createIgnoreMatcher,
   isDir,
   isFile,
-  shouldSkipDir,
+  nodeFileSystem,
   toPosix,
   tryRead,
-  type IgnoreMatcher,
-} from './gitignore';
+  tryStat,
+  type FileSystemLike,
+} from '../fs';
+import { createIgnoreMatcher, shouldSkipDir, type IgnoreMatcher } from './gitignore';
 import type {
   DiscoverOptions,
-  FileSystemLike,
   Project,
   ProjectContext,
   TsconfigEntry,
@@ -137,18 +136,6 @@ export function discoverProject(rootDir: string, opts: DiscoverOptions = {}): Pr
   };
 }
 
-function nodeFileSystem(): FileSystemLike {
-  return {
-    readFile: (path) => readFileSync(path, 'utf-8'),
-    readdir: (path) => readdirSync(path),
-    stat: (path) => {
-      const stats = statSync(path);
-      return { isFile: () => stats.isFile(), isDirectory: () => stats.isDirectory() };
-    },
-    realpath: (path) => realpathSync(path),
-  };
-}
-
 function realpathOrSelf(fs: FileSystemLike, path: string): string {
   try {
     return fs.realpath(path);
@@ -207,17 +194,6 @@ function walk(
       if (ignore.test(abs, false)) continue;
       visit(abs, rel);
     }
-  }
-}
-
-function tryStat(
-  fs: FileSystemLike,
-  path: string,
-): { isFile(): boolean; isDirectory(): boolean } | null {
-  try {
-    return fs.stat(path);
-  } catch {
-    return null;
   }
 }
 

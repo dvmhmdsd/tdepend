@@ -33,9 +33,7 @@ export function loadConfig(opts: LoadConfigOptions): LoadConfigResult {
 
 function findConfigFile(opts: LoadConfigOptions): string | null {
   if (opts.configPath !== undefined) {
-    const path = isAbsolute(opts.configPath)
-      ? opts.configPath
-      : resolve(opts.cwd, opts.configPath);
+    const path = isAbsolute(opts.configPath) ? opts.configPath : resolve(opts.cwd, opts.configPath);
     if (!existsSync(path)) {
       throw new ConfigError(`Config file not found: ${opts.configPath}`);
     }

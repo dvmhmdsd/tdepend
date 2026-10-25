@@ -41,7 +41,10 @@ export const configSchema = z.strictObject({
   include: z.array(z.string()).default([]),
   exclude: z.array(z.string()).default([]),
   typeOnly: z.enum(['usage', 'syntax']).default('usage'),
-  compilers: z.array(z.enum(['tsc', 'esbuild', 'swc'])).min(1).default(['tsc', 'esbuild', 'swc']),
+  compilers: z
+    .array(z.enum(['tsc', 'esbuild', 'swc']))
+    .min(1)
+    .default(['tsc', 'esbuild', 'swc']),
   resolve: resolveSchema.default({ aliases: {}, virtual: [], ignoreUnresolved: [] }),
   metrics: metricsSchema.default({ abstractness: 'implemented', thresholds: { distance: null } }),
   rules: z.array(z.unknown()).default([]),

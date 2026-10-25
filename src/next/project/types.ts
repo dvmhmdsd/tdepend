@@ -1,11 +1,6 @@
 import type * as ts from 'typescript';
 
-export interface FileSystemLike {
-  readFile(path: string): string;
-  readdir(path: string): string[];
-  stat(path: string): { isFile(): boolean; isDirectory(): boolean };
-  realpath(path: string): string;
-}
+import type { FileSystemLike } from '../fs';
 
 export interface TsconfigEntry {
   configPath: string;
