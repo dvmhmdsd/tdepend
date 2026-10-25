@@ -1,0 +1,11 @@
+{
+  "id": "case-02",
+  "slug": "export-type",
+  "file": "case-02-export-type.ts",
+  "options": {},
+  "tsc": false,
+  "esbuild": false,
+  "swc": false,
+  "conservative": false,
+  "loadsTarget": false
+}

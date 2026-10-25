@@ -1,0 +1,13 @@
+{
+  "id": "case-25",
+  "slug": "preserve-value-imports",
+  "file": "case-25-preserve-value-imports.ts",
+  "options": {
+    "preserveValueImports": true
+  },
+  "tsc": false,
+  "esbuild": true,
+  "swc": false,
+  "conservative": false,
+  "loadsTarget": true
+}

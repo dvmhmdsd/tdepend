@@ -1,0 +1,11 @@
+{
+  "id": "case-13",
+  "slug": "reexport-star",
+  "file": "case-13-reexport-star.ts",
+  "options": {},
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true
+}

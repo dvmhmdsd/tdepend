@@ -1,0 +1,13 @@
+{
+  "id": "case-30",
+  "slug": "resolution-mode",
+  "file": "case-30-resolution-mode.mts",
+  "options": {
+    "module": "nodenext"
+  },
+  "tsc": false,
+  "esbuild": false,
+  "swc": false,
+  "conservative": false,
+  "loadsTarget": false
+}

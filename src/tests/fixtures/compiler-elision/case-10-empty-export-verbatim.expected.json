@@ -1,0 +1,13 @@
+{
+  "id": "case-10",
+  "slug": "empty-export-verbatim",
+  "file": "case-10-empty-export-verbatim.ts",
+  "options": {
+    "verbatimModuleSyntax": true
+  },
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true
+}

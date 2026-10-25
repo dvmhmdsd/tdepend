@@ -1,0 +1,11 @@
+{
+  "id": "case-20",
+  "slug": "shadowed-name",
+  "file": "case-20-shadowed-name.ts",
+  "options": {},
+  "tsc": false,
+  "esbuild": false,
+  "swc": false,
+  "conservative": true,
+  "loadsTarget": true
+}

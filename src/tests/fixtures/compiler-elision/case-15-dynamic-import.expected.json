@@ -1,0 +1,11 @@
+{
+  "id": "case-15",
+  "slug": "dynamic-import",
+  "file": "case-15-dynamic-import.ts",
+  "options": {},
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true
+}

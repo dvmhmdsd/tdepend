@@ -1,0 +1,11 @@
+{
+  "id": "case-16",
+  "slug": "unused-import",
+  "file": "case-16-unused-import.ts",
+  "options": {},
+  "tsc": false,
+  "esbuild": false,
+  "swc": false,
+  "conservative": false,
+  "loadsTarget": false
+}

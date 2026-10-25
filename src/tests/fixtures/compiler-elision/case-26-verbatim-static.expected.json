@@ -1,0 +1,13 @@
+{
+  "id": "case-26",
+  "slug": "verbatim-static",
+  "file": "case-26-verbatim-static.ts",
+  "options": {
+    "verbatimModuleSyntax": true
+  },
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true
+}

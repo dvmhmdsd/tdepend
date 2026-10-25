@@ -1,0 +1,11 @@
+{
+  "id": "case-23",
+  "slug": "namespace-value",
+  "file": "case-23-namespace-value.ts",
+  "options": {},
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true
+}

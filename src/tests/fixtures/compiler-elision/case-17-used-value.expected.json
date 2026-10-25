@@ -1,0 +1,11 @@
+{
+  "id": "case-17",
+  "slug": "used-value",
+  "file": "case-17-used-value.ts",
+  "options": {},
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true
+}

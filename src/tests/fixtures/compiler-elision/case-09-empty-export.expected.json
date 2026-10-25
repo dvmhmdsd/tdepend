@@ -1,0 +1,11 @@
+{
+  "id": "case-09",
+  "slug": "empty-export",
+  "file": "case-09-empty-export.ts",
+  "options": {},
+  "tsc": false,
+  "esbuild": false,
+  "swc": false,
+  "conservative": false,
+  "loadsTarget": false
+}

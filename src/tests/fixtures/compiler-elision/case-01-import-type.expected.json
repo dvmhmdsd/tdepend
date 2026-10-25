@@ -1,0 +1,11 @@
+{
+  "id": "case-01",
+  "slug": "import-type",
+  "file": "case-01-import-type.ts",
+  "options": {},
+  "tsc": false,
+  "esbuild": false,
+  "swc": false,
+  "conservative": false,
+  "loadsTarget": false
+}

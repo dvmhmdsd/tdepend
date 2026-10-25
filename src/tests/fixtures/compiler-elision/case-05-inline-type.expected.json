@@ -1,0 +1,11 @@
+{
+  "id": "case-05",
+  "slug": "inline-type",
+  "file": "case-05-inline-type.ts",
+  "options": {},
+  "tsc": false,
+  "esbuild": false,
+  "swc": false,
+  "conservative": false,
+  "loadsTarget": false
+}

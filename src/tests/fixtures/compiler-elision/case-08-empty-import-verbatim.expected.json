@@ -1,0 +1,13 @@
+{
+  "id": "case-08",
+  "slug": "empty-import-verbatim",
+  "file": "case-08-empty-import-verbatim.ts",
+  "options": {
+    "verbatimModuleSyntax": true
+  },
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true
+}

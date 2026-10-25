@@ -1,0 +1,12 @@
+{
+  "id": "case-21",
+  "slug": "const-enum",
+  "file": "case-21-const-enum.ts",
+  "options": {},
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": true,
+  "loadsTarget": true,
+  "tscProgram": false
+}

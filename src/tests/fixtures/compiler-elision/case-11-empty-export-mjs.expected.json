@@ -1,0 +1,11 @@
+{
+  "id": "case-11",
+  "slug": "empty-export-mjs",
+  "file": "case-11-empty-export-mjs.mjs",
+  "options": {},
+  "tsc": false,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true
+}

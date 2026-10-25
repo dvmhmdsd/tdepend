@@ -1,0 +1,11 @@
+{
+  "id": "case-18",
+  "slug": "type-only-usage",
+  "file": "case-18-type-only-usage.ts",
+  "options": {},
+  "tsc": false,
+  "esbuild": false,
+  "swc": false,
+  "conservative": false,
+  "loadsTarget": false
+}

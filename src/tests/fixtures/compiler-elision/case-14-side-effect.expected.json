@@ -1,0 +1,11 @@
+{
+  "id": "case-14",
+  "slug": "side-effect",
+  "file": "case-14-side-effect.ts",
+  "options": {},
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true
+}

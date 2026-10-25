@@ -1,0 +1,13 @@
+{
+  "id": "case-27",
+  "slug": "classic-jsx",
+  "file": "case-27-classic-jsx.tsx",
+  "options": {
+    "jsx": "react"
+  },
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true
+}
