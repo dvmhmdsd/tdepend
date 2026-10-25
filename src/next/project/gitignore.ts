@@ -1,41 +1,13 @@
-import { isAbsolute, join, relative, sep } from 'node:path';
+import { isAbsolute, join, relative } from 'node:path';
 
 import picomatch from 'picomatch';
 
-import type { FileSystemLike } from './types';
+import { isDir, toPosix, tryRead, type FileSystemLike } from '../fs';
 
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', 'out', 'coverage']);
 
 export function shouldSkipDir(name: string): boolean {
   return SKIP_DIRS.has(name) || name.startsWith('.');
-}
-
-export function toPosix(path: string): string {
-  return sep === '/' ? path : path.split(sep).join('/');
-}
-
-export function tryRead(fs: FileSystemLike, path: string): string | null {
-  try {
-    return fs.readFile(path);
-  } catch {
-    return null;
-  }
-}
-
-export function isDir(fs: FileSystemLike, path: string): boolean {
-  try {
-    return fs.stat(path).isDirectory();
-  } catch {
-    return false;
-  }
-}
-
-export function isFile(fs: FileSystemLike, path: string): boolean {
-  try {
-    return fs.stat(path).isFile();
-  } catch {
-    return false;
-  }
 }
 
 export interface IgnoreMatcher {
