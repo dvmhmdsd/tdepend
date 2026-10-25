@@ -1,0 +1,13 @@
+{
+  "id": "case-06",
+  "slug": "inline-type-verbatim",
+  "file": "case-06-inline-type-verbatim.ts",
+  "options": {
+    "verbatimModuleSyntax": true
+  },
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true
+}

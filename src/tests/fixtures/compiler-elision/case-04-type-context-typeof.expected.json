@@ -1,0 +1,11 @@
+{
+  "id": "case-04",
+  "slug": "type-context-typeof",
+  "file": "case-04-type-context-typeof.ts",
+  "options": {},
+  "tsc": false,
+  "esbuild": false,
+  "swc": false,
+  "conservative": false,
+  "loadsTarget": false
+}

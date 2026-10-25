@@ -6,6 +6,8 @@ export type SiteForm = 'declaration' | 'type-context';
 
 export type UnsupportedReason = 'non-literal' | 'shadowed-require' | 'jsdoc-import-type';
 
+export type LoadReason = 'syntax' | 'usage' | 'retained';
+
 export interface ImportBinding {
   local: string;
   imported: string | '*' | 'default';
@@ -21,6 +23,9 @@ export interface ImportSite {
   bindings: ImportBinding[];
   deferred?: boolean;
   unsupported?: UnsupportedReason;
+  loadsTarget?: boolean;
+  loadsTargetBy?: LoadReason;
+  loadReason?: string;
   node: ts.Node;
 }
 

@@ -1,0 +1,11 @@
+{
+  "id": "case-07",
+  "slug": "empty-import",
+  "file": "case-07-empty-import.ts",
+  "options": {},
+  "tsc": false,
+  "esbuild": false,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true
+}

@@ -1,0 +1,11 @@
+{
+  "id": "case-22",
+  "slug": "namespace-type",
+  "file": "case-22-namespace-type.ts",
+  "options": {},
+  "tsc": false,
+  "esbuild": false,
+  "swc": false,
+  "conservative": false,
+  "loadsTarget": false
+}

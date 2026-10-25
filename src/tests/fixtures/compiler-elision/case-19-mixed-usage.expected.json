@@ -1,0 +1,11 @@
+{
+  "id": "case-19",
+  "slug": "mixed-usage",
+  "file": "case-19-mixed-usage.ts",
+  "options": {},
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true
+}

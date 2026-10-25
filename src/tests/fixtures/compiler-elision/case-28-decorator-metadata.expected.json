@@ -1,0 +1,14 @@
+{
+  "id": "case-28",
+  "slug": "decorator-metadata",
+  "file": "case-28-decorator-metadata.ts",
+  "options": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  },
+  "tsc": true,
+  "esbuild": false,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true
+}

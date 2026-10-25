@@ -1,0 +1,12 @@
+{
+  "id": "case-12",
+  "slug": "unmarked-reexport",
+  "file": "case-12-unmarked-reexport.ts",
+  "options": {},
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true,
+  "tscProgram": false
+}

@@ -1,0 +1,11 @@
+{
+  "id": "case-03",
+  "slug": "type-context-import",
+  "file": "case-03-type-context-import.ts",
+  "options": {},
+  "tsc": false,
+  "esbuild": false,
+  "swc": false,
+  "conservative": false,
+  "loadsTarget": false
+}

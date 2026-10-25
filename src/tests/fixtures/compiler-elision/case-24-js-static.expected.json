@@ -1,0 +1,11 @@
+{
+  "id": "case-24",
+  "slug": "js-static",
+  "file": "case-24-js-static.js",
+  "options": {},
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true
+}
