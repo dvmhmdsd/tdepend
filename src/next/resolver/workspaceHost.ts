@@ -15,7 +15,9 @@ export function posixJoin(...parts: string[]): string {
     for (const segment of part.split('/')) {
       if (segment === '' || segment === '.') continue;
       if (segment === '..') {
-        if (segments.length > 1) segments.pop();
+        const last = segments[segments.length - 1];
+        if (segments.length > 0 && last !== '..') segments.pop();
+        else segments.push('..');
         continue;
       }
       segments.push(segment);

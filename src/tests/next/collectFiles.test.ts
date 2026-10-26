@@ -49,8 +49,9 @@ describe('collectFiles analysis set', () => {
 
     expect(result.files).toContain('src/main.tsx');
     expect(result.files).toContain('vite.config.ts');
+    expect(result.files).toContain('lib/button.ts');
     expect(result.files).toContain('src/uncovered.js');
-    expect(result.uncovered).toEqual(['src/uncovered.js']);
+    expect(result.uncovered).toEqual(['lib/button.ts', 'src/uncovered.js']);
   });
 
   it('skips spec, __tests__, stories, declarations, min.js and public by default', () => {

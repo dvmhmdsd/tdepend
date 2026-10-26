@@ -47,8 +47,7 @@ function scriptKindFor(file: string): ts.ScriptKind {
 
 function extractSites(sourceFile: ts.SourceFile): ImportSite[] {
   const sites: ImportSite[] = [];
-  const shadowedRequire =
-    sourceFile.text.includes('require') && declaresName(sourceFile, 'require');
+  const scopeInfo = sourceFile.text.includes('require') ? buildScopeInfo(sourceFile) : null;
 
   const add = (draft: DraftSite, anchor: ts.Node): void => {
     const start = anchor.getStart(sourceFile);
@@ -165,7 +164,9 @@ function extractSites(sourceFile: ts.SourceFile): ImportSite[] {
       node: argument,
     };
     if (isDynamic) draft.deferred = isDeferred(node);
-    if (isRequire && shadowedRequire) draft.unsupported = 'shadowed-require';
+    if (isRequire && scopeInfo !== null && isRequireShadowed(scopeInfo, node)) {
+      draft.unsupported = 'shadowed-require';
+    }
     add(draft, argument);
   };
 
@@ -325,45 +326,412 @@ function collectDirectives(sourceFile: ts.SourceFile): string[] {
   return directives;
 }
 
-function declaresName(sourceFile: ts.SourceFile, name: string): boolean {
-  const declared = new Set<string>();
-  const add = (node: ts.Node | undefined): void => {
-    if (node === undefined) return;
-    if (ts.isIdentifier(node)) declared.add(node.text);
-    else if (ts.isObjectBindingPattern(node) || ts.isArrayBindingPattern(node)) {
-      for (const element of node.elements) {
-        if (ts.isBindingElement(element)) add(element.name);
-      }
-    }
+interface ValueScope {
+  parent: ValueScope | null;
+  bindings: Set<string>;
+  ownsVars: boolean;
+  strict: boolean;
+}
+
+interface ScopeInfo {
+  scopeOf: WeakMap<ts.Node, ValueScope>;
+}
+
+function buildScopeInfo(sourceFile: ts.SourceFile): ScopeInfo {
+  const scopeOf = new WeakMap<ts.Node, ValueScope>();
+  const analysis = analyzeScopes(sourceFile);
+  const root: ValueScope = {
+    parent: null,
+    bindings: new Set(),
+    ownsVars: true,
+    strict: isStrictSource(sourceFile),
   };
+  scopeOf.set(sourceFile, root);
+  const stack: ValueScope[] = [root];
+
+  const current = (): ValueScope => stack[stack.length - 1];
+  const enclosingScopeOf = (node: ts.Node): ValueScope => {
+    for (let ancestor = node.parent; ancestor !== undefined; ancestor = ancestor.parent) {
+      const scope = scopeOf.get(ancestor);
+      if (scope !== undefined) return scope;
+    }
+    return root;
+  };
+  const varScope = (): ValueScope => {
+    for (let index = stack.length - 1; index >= 0; index -= 1) {
+      if (stack[index].ownsVars) return stack[index];
+    }
+    return root;
+  };
+  const push = (node: ts.Node, ownsVars: boolean, strict: boolean): ValueScope => {
+    const scope: ValueScope = {
+      parent: enclosingScopeOf(node),
+      bindings: new Set(),
+      ownsVars,
+      strict,
+    };
+    scopeOf.set(node, scope);
+    stack.push(scope);
+    return scope;
+  };
+  const addBinding = (name: ts.BindingName, scope: ValueScope): void => {
+    collectBindingNames(name, scope.bindings);
+  };
+  const inheritStrict = (node: ts.Node): boolean => enclosingScopeOf(node).strict;
 
   const visit = (node: ts.Node): void => {
+    if (ts.isFunctionLike(node)) {
+      const enclosing = enclosingScopeOf(node);
+      if (ts.isFunctionDeclaration(node) && node.name !== undefined) {
+        const name = node.name.text;
+        enclosing.bindings.add(name);
+        if (
+          !enclosing.strict &&
+          isPlainFunction(node) &&
+          !isHoistBlocked(node, name, analysis.lexicalNames)
+        ) {
+          varScope().bindings.add(name);
+        }
+      }
+      if (node.name !== undefined && ts.isComputedPropertyName(node.name)) {
+        scopeOf.set(node.name, enclosing);
+      }
+      for (const decorator of decoratorsOf(node)) scopeOf.set(decorator, enclosing);
+      for (const parameter of node.parameters) {
+        for (const decorator of decoratorsOf(parameter)) scopeOf.set(decorator, enclosing);
+      }
+      const body = (node as ts.FunctionLikeDeclaration).body;
+      const strict =
+        enclosing.strict || (body !== undefined && ts.isBlock(body) && hasUseStrictPrologue(body));
+      const scope = push(node, false, strict);
+      if (ts.isFunctionExpression(node) && node.name !== undefined) {
+        scope.bindings.add(node.name.text);
+      }
+      for (const parameter of node.parameters) addBinding(parameter.name, scope);
+      node.forEachChild(visit);
+      stack.pop();
+      return;
+    }
+
+    if (ts.isClassStaticBlockDeclaration(node)) {
+      push(node, true, true);
+      node.forEachChild(visit);
+      stack.pop();
+      return;
+    }
+
+    if (ts.isClassExpression(node)) {
+      const scope = push(node, false, true);
+      if (node.name !== undefined) scope.bindings.add(node.name.text);
+      node.forEachChild(visit);
+      stack.pop();
+      return;
+    }
+
+    if (ts.isClassDeclaration(node)) {
+      if (node.name !== undefined) current().bindings.add(node.name.text);
+      push(node, false, true);
+      node.forEachChild(visit);
+      stack.pop();
+      return;
+    }
+
+    if (ts.isModuleBlock(node)) {
+      push(node, true, inheritStrict(node));
+      node.forEachChild(visit);
+      stack.pop();
+      return;
+    }
+
     if (
-      ts.isVariableDeclaration(node) ||
-      ts.isParameter(node) ||
-      ts.isBindingElement(node) ||
-      ts.isFunctionDeclaration(node) ||
-      ts.isFunctionExpression(node) ||
-      ts.isClassDeclaration(node) ||
-      ts.isClassExpression(node) ||
-      ts.isEnumDeclaration(node) ||
-      ts.isInterfaceDeclaration(node) ||
-      ts.isTypeAliasDeclaration(node) ||
-      ts.isModuleDeclaration(node)
+      ts.isCaseBlock(node) ||
+      ts.isForStatement(node) ||
+      ts.isForInStatement(node) ||
+      ts.isForOfStatement(node)
     ) {
-      add(node.name);
-    } else if (ts.isImportClause(node)) {
-      add(node.name);
-    } else if (
-      ts.isImportSpecifier(node) ||
-      ts.isImportEqualsDeclaration(node) ||
-      ts.isNamespaceImport(node)
-    ) {
-      add(node.name);
+      push(node, false, inheritStrict(node));
+      node.forEachChild(visit);
+      stack.pop();
+      return;
+    }
+
+    if (ts.isBlock(node)) {
+      push(node, isFunctionBody(node), inheritStrict(node));
+      node.forEachChild(visit);
+      stack.pop();
+      return;
+    }
+
+    if (ts.isCatchClause(node)) {
+      const scope = push(node, false, inheritStrict(node));
+      if (node.variableDeclaration !== undefined) addBinding(node.variableDeclaration.name, scope);
+      node.forEachChild(visit);
+      stack.pop();
+      return;
+    }
+
+    if (ts.isVariableDeclarationList(node)) {
+      const target = (node.flags & ts.NodeFlags.BlockScoped) !== 0 ? current() : varScope();
+      for (const declaration of node.declarations) addBinding(declaration.name, target);
+      node.forEachChild(visit);
+      return;
+    }
+
+    if (ts.isEnumDeclaration(node)) {
+      current().bindings.add(node.name.text);
+      node.forEachChild(visit);
+      return;
+    }
+
+    if (ts.isModuleDeclaration(node)) {
+      if (ts.isIdentifier(node.name) && namespaceHasValue(node)) {
+        current().bindings.add(node.name.text);
+      }
+      const scope = push(node, false, inheritStrict(node));
+      const exports = analysis.namespaceExports.get(qualifiedNamespaceName(node));
+      if (exports !== undefined) for (const name of exports) scope.bindings.add(name);
+      node.forEachChild(visit);
+      stack.pop();
+      return;
+    }
+
+    if (ts.isImportEqualsDeclaration(node)) {
+      if (!node.isTypeOnly) current().bindings.add(node.name.text);
+      node.forEachChild(visit);
+      return;
+    }
+
+    if (ts.isImportDeclaration(node)) {
+      addImportBindings(node, current());
+      return;
+    }
+
+    node.forEachChild(visit);
+  };
+
+  visit(sourceFile);
+  return { scopeOf };
+}
+
+function decoratorsOf(node: ts.Node): readonly ts.Decorator[] {
+  return ts.canHaveDecorators(node) ? (ts.getDecorators(node) ?? []) : [];
+}
+
+function hasUseStrictPrologue(node: ts.SourceFile | ts.Block): boolean {
+  for (const statement of node.statements) {
+    if (ts.isExpressionStatement(statement) && ts.isStringLiteral(statement.expression)) {
+      if (statement.expression.text === 'use strict') return true;
+    } else {
+      break;
+    }
+  }
+  return false;
+}
+
+function isStrictSource(sourceFile: ts.SourceFile): boolean {
+  return ts.isExternalModule(sourceFile) || hasUseStrictPrologue(sourceFile);
+}
+
+function isFunctionBody(block: ts.Block): boolean {
+  const parent = block.parent;
+  return ts.isFunctionLike(parent) && (parent as ts.FunctionLikeDeclaration).body === block;
+}
+
+interface ScopeAnalysis {
+  lexicalNames: Map<ts.Node, Set<string>>;
+  namespaceExports: Map<string, Set<string>>;
+}
+
+function analyzeScopes(sourceFile: ts.SourceFile): ScopeAnalysis {
+  const lexicalNames = new Map<ts.Node, Set<string>>();
+  const namespaceExports = new Map<string, Set<string>>();
+
+  const visit = (node: ts.Node): void => {
+    if (isLexicalScope(node)) lexicalNames.set(node, directLexicalNames(node));
+    if (ts.isModuleDeclaration(node)) {
+      const key = qualifiedNamespaceName(node);
+      const body = node.body;
+      if (
+        body !== undefined &&
+        ts.isModuleBlock(body) &&
+        !hasModifier(node, ts.SyntaxKind.DeclareKeyword)
+      ) {
+        const names = namespaceExports.get(key) ?? new Set<string>();
+        for (const statement of body.statements) {
+          for (const name of exportedValueNames(statement)) names.add(name);
+        }
+        namespaceExports.set(key, names);
+      }
     }
     node.forEachChild(visit);
   };
 
   visit(sourceFile);
-  return declared.has(name);
+  return { lexicalNames, namespaceExports };
+}
+
+function isLexicalScope(node: ts.Node): boolean {
+  return (
+    ts.isSourceFile(node) ||
+    ts.isBlock(node) ||
+    ts.isModuleBlock(node) ||
+    ts.isCaseBlock(node) ||
+    ts.isClassStaticBlockDeclaration(node)
+  );
+}
+
+function statementsOf(node: ts.Node): readonly ts.Statement[] | undefined {
+  if (ts.isSourceFile(node) || ts.isBlock(node) || ts.isModuleBlock(node)) return node.statements;
+  if (ts.isClassStaticBlockDeclaration(node)) return node.body.statements;
+  return undefined;
+}
+
+function directLexicalNames(node: ts.Node): Set<string> {
+  const names = new Set<string>();
+  const statements = statementsOf(node);
+  if (statements === undefined) return names;
+  for (const statement of statements) {
+    if (
+      ts.isVariableStatement(statement) &&
+      (statement.declarationList.flags & ts.NodeFlags.BlockScoped) !== 0
+    ) {
+      for (const declaration of statement.declarationList.declarations) {
+        collectBindingNames(declaration.name, names);
+      }
+    } else if (ts.isClassDeclaration(statement) && statement.name !== undefined) {
+      names.add(statement.name.text);
+    }
+  }
+  return names;
+}
+
+function namespaceHasValue(node: ts.ModuleDeclaration): boolean {
+  if (hasModifier(node, ts.SyntaxKind.DeclareKeyword)) return false;
+  const body = node.body;
+  if (body === undefined) return false;
+  if (ts.isModuleBlock(body)) return body.statements.some(statementHasValue);
+  if (ts.isModuleDeclaration(body)) return namespaceHasValue(body);
+  return false;
+}
+
+function statementHasValue(statement: ts.Statement): boolean {
+  if (
+    ts.isVariableStatement(statement) ||
+    ts.isFunctionDeclaration(statement) ||
+    ts.isClassDeclaration(statement) ||
+    ts.isEnumDeclaration(statement) ||
+    ts.isImportEqualsDeclaration(statement)
+  ) {
+    return true;
+  }
+  if (ts.isModuleDeclaration(statement)) return namespaceHasValue(statement);
+  return false;
+}
+
+function exportedValueNames(statement: ts.Statement): string[] {
+  if (!hasModifier(statement, ts.SyntaxKind.ExportKeyword)) return [];
+  if (ts.isVariableStatement(statement)) {
+    const names = new Set<string>();
+    for (const declaration of statement.declarationList.declarations) {
+      collectBindingNames(declaration.name, names);
+    }
+    return [...names];
+  }
+  if (
+    ts.isFunctionDeclaration(statement) ||
+    ts.isClassDeclaration(statement) ||
+    ts.isEnumDeclaration(statement) ||
+    ts.isModuleDeclaration(statement)
+  ) {
+    return statement.name !== undefined && ts.isIdentifier(statement.name)
+      ? [statement.name.text]
+      : [];
+  }
+  if (ts.isImportEqualsDeclaration(statement)) return [statement.name.text];
+  return [];
+}
+
+function qualifiedNamespaceName(node: ts.ModuleDeclaration): string {
+  const parts: string[] = [];
+  for (let current: ts.Node | undefined = node; current !== undefined; current = current.parent) {
+    if (ts.isModuleDeclaration(current) && ts.isIdentifier(current.name)) {
+      parts.unshift(current.name.text);
+    }
+  }
+  return parts.join('.');
+}
+
+function hasModifier(node: ts.Node, kind: ts.SyntaxKind): boolean {
+  return (
+    ts.canHaveModifiers(node) &&
+    (ts.getModifiers(node)?.some((modifier) => modifier.kind === kind) ?? false)
+  );
+}
+
+function isPlainFunction(node: ts.FunctionDeclaration): boolean {
+  return node.asteriskToken === undefined && !hasModifier(node, ts.SyntaxKind.AsyncKeyword);
+}
+
+function isHoistBlocked(
+  node: ts.FunctionDeclaration,
+  name: string,
+  lexicalNames: Map<ts.Node, Set<string>>,
+): boolean {
+  for (let ancestor = node.parent; ancestor !== undefined; ancestor = ancestor.parent) {
+    const names = lexicalNames.get(ancestor);
+    if (names !== undefined && names.has(name)) return true;
+    if (isVarBoundary(ancestor)) return false;
+  }
+  return false;
+}
+
+function isVarBoundary(node: ts.Node): boolean {
+  return (
+    ts.isSourceFile(node) ||
+    ts.isModuleBlock(node) ||
+    ts.isClassStaticBlockDeclaration(node) ||
+    (ts.isBlock(node) && isFunctionBody(node))
+  );
+}
+
+function collectBindingNames(name: ts.BindingName, out: Set<string>): void {
+  if (ts.isIdentifier(name)) {
+    out.add(name.text);
+    return;
+  }
+  for (const element of name.elements) {
+    if (ts.isBindingElement(element)) collectBindingNames(element.name, out);
+  }
+}
+
+function addImportBindings(decl: ts.ImportDeclaration, scope: ValueScope): void {
+  const clause = decl.importClause;
+  if (clause === undefined || clause.isTypeOnly) return;
+  if (clause.name !== undefined) scope.bindings.add(clause.name.text);
+
+  const named = clause.namedBindings;
+  if (named === undefined) return;
+  if (ts.isNamespaceImport(named)) {
+    scope.bindings.add(named.name.text);
+    return;
+  }
+  for (const element of named.elements) {
+    if (!element.isTypeOnly) scope.bindings.add(element.name.text);
+  }
+}
+
+function isRequireShadowed(info: ScopeInfo, node: ts.Node): boolean {
+  for (let current: ts.Node | undefined = node; current !== undefined; current = current.parent) {
+    const scope = info.scopeOf.get(current);
+    if (scope === undefined) continue;
+    for (
+      let candidate: ValueScope | null = scope;
+      candidate !== null;
+      candidate = candidate.parent
+    ) {
+      if (candidate.bindings.has('require')) return true;
+    }
+    return false;
+  }
+  return false;
 }

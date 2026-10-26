@@ -159,3 +159,271 @@ describe('parseFile import sites', () => {
     expect(parsed.sites[0].specifier).toBe('./a');
   });
 });
+
+describe('require shadowing is scoped to enclosing value scopes', () => {
+  function requireSite(text: string, specifier = './x'): ImportSite {
+    const sites = sitesOf(text).filter(
+      (site) => site.kind === 'require' && site.specifier === specifier,
+    );
+    expect(sites).toHaveLength(1);
+    return sites[0];
+  }
+
+  it('shadows a module-level call from a module-level value binding, in either order', () => {
+    expect(requireSite(`const require = () => {};\nrequire('./x');\n`).unsupported).toBe(
+      'shadowed-require',
+    );
+    expect(requireSite(`require('./x');\nconst require = () => {};\n`).unsupported).toBe(
+      'shadowed-require',
+    );
+  });
+
+  it('does not let an unrelated nested function parameter shadow a module-level call', () => {
+    const site = requireSite(`function f(require: unknown) {}\nrequire('./x');\n`);
+
+    expect(site.kind).toBe('require');
+    expect(site.unsupported).toBeUndefined();
+  });
+
+  it('shadows a call inside the function that declares the parameter', () => {
+    expect(requireSite(`function f(require: unknown) {\n  require('./x');\n}\n`).unsupported).toBe(
+      'shadowed-require',
+    );
+  });
+
+  it('treats a value import named require as a shadow', () => {
+    expect(requireSite(`import require from './req';\nrequire('./x');\n`).unsupported).toBe(
+      'shadowed-require',
+    );
+  });
+
+  it('does not collect declarations from unrelated nested functions', () => {
+    const site = requireSite(
+      `function a() {\n  const require = 1;\n}\nfunction b() {\n  require('./x');\n}\n`,
+    );
+
+    expect(site.unsupported).toBeUndefined();
+  });
+
+  it('hoists a var declaration to its enclosing function scope', () => {
+    const hoisted = requireSite(
+      `function f() {\n  if (flag) {\n    var require = custom;\n  }\n  require('./x');\n}\n`,
+    );
+    expect(hoisted.unsupported).toBe('shadowed-require');
+
+    const blockScoped = requireSite(
+      `function f() {\n  if (flag) {\n    let require = custom;\n  }\n  require('./x');\n}\n`,
+    );
+    expect(blockScoped.unsupported).toBeUndefined();
+  });
+
+  it('shadows from an enclosing module binding through a nested block', () => {
+    const site = requireSite(
+      `const require = custom;\nfunction f() {\n  {\n    require('./x');\n  }\n}\n`,
+    );
+
+    expect(site.unsupported).toBe('shadowed-require');
+  });
+
+  it('scopes catch, loop and destructuring bindings to their value scopes', () => {
+    expect(requireSite(`try {} catch (require) {\n  require('./x');\n}\n`).unsupported).toBe(
+      'shadowed-require',
+    );
+    expect(requireSite(`try {} catch (require) {}\nrequire('./x');\n`).unsupported).toBeUndefined();
+
+    expect(requireSite(`for (const require of xs) {\n  require('./x');\n}\n`).unsupported).toBe(
+      'shadowed-require',
+    );
+    expect(
+      requireSite(`for (const require of xs) {}\nrequire('./x');\n`).unsupported,
+    ).toBeUndefined();
+
+    expect(requireSite(`const { require } = obj;\nrequire('./x');\n`).unsupported).toBe(
+      'shadowed-require',
+    );
+  });
+
+  it('binds a named function or class expression name internally only', () => {
+    expect(requireSite(`const f = function require() {\n  require('./x');\n};\n`).unsupported).toBe(
+      'shadowed-require',
+    );
+    expect(
+      requireSite(`const f = function require() {};\nrequire('./x');\n`).unsupported,
+    ).toBeUndefined();
+    expect(
+      requireSite(`const C = class require {\n  m() {\n    require('./x');\n  }\n};\n`).unsupported,
+    ).toBe('shadowed-require');
+  });
+
+  it('keeps a static-block var out of sibling blocks and the module', () => {
+    const sibling = requireSite(
+      `class C {\n  static {\n    var require = 1;\n  }\n  static {\n    require('./x');\n  }\n}\n`,
+    );
+    expect(sibling.unsupported).toBeUndefined();
+
+    const moduleScope = requireSite(
+      `class C {\n  static {\n    var require = 1;\n  }\n}\nrequire('./x');\n`,
+    );
+    expect(moduleScope.unsupported).toBeUndefined();
+  });
+
+  it('ignores type-only declarations and type-only imports named require', () => {
+    expect(requireSite(`type require = string;\nrequire('./x');\n`).unsupported).toBeUndefined();
+    expect(requireSite(`interface require {}\nrequire('./x');\n`).unsupported).toBeUndefined();
+    expect(
+      requireSite(`import type { require } from './t';\nrequire('./x');\n`).unsupported,
+    ).toBeUndefined();
+    expect(
+      requireSite(`import { type require, other } from './t';\nrequire('./x');\n`).unsupported,
+    ).toBeUndefined();
+  });
+
+  it('shares one lexical scope across every switch clause', () => {
+    expect(
+      requireSite(
+        `switch (n) {\n  case 1:\n    const require = 1;\n    break;\n  case 2:\n    require('./x');\n}\n`,
+      ).unsupported,
+    ).toBe('shadowed-require');
+  });
+
+  it('does not let a default-clause declaration leak past the switch', () => {
+    const site = requireSite(
+      `switch (n) {\n  default:\n    const require = 1;\n}\nrequire('./x');\n`,
+    );
+
+    expect(site.unsupported).toBeUndefined();
+  });
+
+  it('evaluates a computed method name in the enclosing scope, not the method', () => {
+    const site = requireSite(`const obj = { [require('./x')](require) {} };\n`);
+
+    expect(site.kind).toBe('require');
+    expect(site.unsupported).toBeUndefined();
+  });
+
+  it('still shadows a call in the body of a method that names a parameter require', () => {
+    expect(requireSite(`const obj = { m(require) {\n  require('./x');\n} };\n`).unsupported).toBe(
+      'shadowed-require',
+    );
+  });
+
+  it('keeps a body var out of the parameter defaults but visible in the body', () => {
+    expect(
+      requireSite(`function f(x = require('./x')) {\n  var require = custom;\n}\n`).unsupported,
+    ).toBeUndefined();
+
+    expect(
+      requireSite(
+        `function f(x = require('./x')) {\n  let require = custom;\n  require('./y');\n}\n`,
+        './y',
+      ).unsupported,
+    ).toBe('shadowed-require');
+  });
+
+  it('keeps namespace-local var bindings out of the module scope', () => {
+    expect(
+      requireSite(`namespace N {\n  var require = custom;\n  require('./x');\n}\n`).unsupported,
+    ).toBe('shadowed-require');
+
+    expect(
+      requireSite(`namespace N {\n  var require = custom;\n}\nrequire('./x');\n`).unsupported,
+    ).toBeUndefined();
+  });
+
+  it('keeps a namespace-local import-equals binding out of the module scope', () => {
+    const site = requireSite(
+      `namespace N {\n  import require = require('./dep');\n}\nrequire('./x');\n`,
+    );
+
+    expect(site.kind).toBe('require');
+    expect(site.unsupported).toBeUndefined();
+  });
+
+  it('evaluates nested scopes in a computed method name in the enclosing scope', () => {
+    const site = requireSite(`const obj = { [(() => require('./x'))()](require) {} };\n`);
+
+    expect(site.kind).toBe('require');
+    expect(site.unsupported).toBeUndefined();
+  });
+
+  it('evaluates a method decorator in the enclosing scope', () => {
+    const site = requireSite(`class C {\n  @dec(require('./x'))\n  m(require) {}\n}\n`);
+
+    expect(site.kind).toBe('require');
+    expect(site.unsupported).toBeUndefined();
+  });
+
+  it('does not leak a dotted namespace inner name into the module scope', () => {
+    const site = requireSite(`namespace N.require {\n  export const x = 1;\n}\nrequire('./x');\n`);
+
+    expect(site.kind).toBe('require');
+    expect(site.unsupported).toBeUndefined();
+  });
+
+  it('hoists a sloppy block function but not in strict code', () => {
+    const sloppy = requireSite(
+      `function f() {\n  if (true) {\n    function require() {}\n  }\n  require('./x');\n}\nf();\n`,
+    );
+    expect(sloppy.unsupported).toBe('shadowed-require');
+
+    const strict = requireSite(
+      `'use strict';\nfunction f() {\n  if (true) {\n    function require() {}\n  }\n  require('./x');\n}\nf();\n`,
+    );
+    expect(strict.unsupported).toBeUndefined();
+
+    const strictFunction = requireSite(
+      `function f() {\n  'use strict';\n  if (true) {\n    function require() {}\n  }\n  require('./x');\n}\n`,
+    );
+    expect(strictFunction.unsupported).toBeUndefined();
+  });
+
+  it('does not hoist async or generator block functions', () => {
+    expect(
+      requireSite(
+        `function f() {\n  {\n    async function require() {}\n  }\n  require('./x');\n}\n`,
+      ).unsupported,
+    ).toBeUndefined();
+    expect(
+      requireSite(`function f() {\n  {\n    function* require() {}\n  }\n  require('./x');\n}\n`)
+        .unsupported,
+    ).toBeUndefined();
+  });
+
+  it('does not hoist a block function blocked by an enclosing lexical binding', () => {
+    const site = requireSite(
+      `function f() {\n  {\n    let require = custom;\n    {\n      function require() {}\n    }\n  }\n  require('./x');\n}\n`,
+    );
+
+    expect(site.unsupported).toBeUndefined();
+  });
+
+  it('does not shadow a type-only namespace', () => {
+    expect(
+      requireSite(
+        `namespace require {\n  export interface Options { value: string }\n}\nrequire('./x');\n`,
+      ).unsupported,
+    ).toBeUndefined();
+  });
+
+  it('shadows a namespace that introduces a runtime value', () => {
+    expect(
+      requireSite(`namespace require {\n  export const x = 1;\n}\nrequire('./x');\n`).unsupported,
+    ).toBe('shadowed-require');
+  });
+
+  it('sees a merged namespace exported value member across declarations', () => {
+    const site = requireSite(
+      `namespace N {\n  export const require = (path: string) => 0;\n}\nnamespace N {\n  export const value = require('./x');\n}\n`,
+    );
+
+    expect(site.unsupported).toBe('shadowed-require');
+  });
+
+  it('does not share a non-exported namespace binding across declarations', () => {
+    const site = requireSite(
+      `namespace N {\n  const require = (path: string) => 0;\n}\nnamespace N {\n  export const value = require('./x');\n}\n`,
+    );
+
+    expect(site.unsupported).toBeUndefined();
+  });
+});
