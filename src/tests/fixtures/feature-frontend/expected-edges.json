@@ -1,0 +1,6 @@
+[
+  ["src/features/cart/index.ts", "src/features/cart/model.ts", ["static"], true],
+  ["src/main.tsx", "src/features/cart/index.ts", ["static"], true],
+  ["src/main.tsx", "src/shared/format.ts", ["static"], true],
+  ["src/shared/format.ts", "src/features/cart/model.ts", ["static"], true]
+]

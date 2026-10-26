@@ -1,0 +1,10 @@
+[
+  ["packages/a/browser/entry.ts", "packages/cond/src/browser.ts", ["static"], true],
+  ["packages/a/src/conditions.ts", "packages/cond/src/a.ts", ["static"], true],
+  ["packages/a/src/conditions.ts", "packages/cond/src/node.ts", ["static"], true],
+  ["packages/a/src/esm.mts", "packages/b/src/import-only.ts", ["static"], true],
+  ["packages/a/src/esm.mts", "packages/cond/src/esm.ts", ["static"], true],
+  ["packages/a/src/index.ts", "packages/b/src/index.ts", ["static"], true],
+  ["packages/a/src/mode.mts", "packages/cond/src/cjs.ts", ["require"], true],
+  ["scripts/seed.ts", "scripts/util.ts", ["static"], true]
+]

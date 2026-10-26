@@ -1,0 +1,6 @@
+[
+  ["src/index.ts", "src/internal/helper.ts", ["static"], true],
+  ["src/index.ts", "src/math.ts", ["re-export"], true],
+  ["src/index.ts", "src/types.ts", ["type"], false],
+  ["src/internal/helper.ts", "src/math.ts", ["static"], true]
+]
