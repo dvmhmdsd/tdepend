@@ -115,6 +115,32 @@ describe('resolver relative and path resolution', () => {
   });
 });
 
+describe('resolver alias precedence', () => {
+  it('lets the longest matching prefix win regardless of key order', () => {
+    const first = harness('vite-tanstack-router', {
+      aliases: { '~/': 'src/', '~/components/': 'lib/' },
+    });
+    expect(
+      resolveCode(first, 'src/main.tsx', "import '~/components/button';", '~/components/button'),
+    ).toMatchObject({ class: 'internal', target: { file: 'lib/button.ts' } });
+
+    const reversed = harness('vite-tanstack-router', {
+      aliases: { '~/components/': 'lib/', '~/': 'src/' },
+    });
+    expect(
+      resolveCode(reversed, 'src/main.tsx', "import '~/components/button';", '~/components/button'),
+    ).toMatchObject({ class: 'internal', target: { file: 'lib/button.ts' } });
+  });
+
+  it('keeps successful TypeScript resolution ahead of a conflicting custom alias', () => {
+    const h = harness('vite-tanstack-router', { aliases: { '@/': 'lib/' } });
+
+    expect(
+      resolveCode(h, 'src/main.tsx', "import '@/components/button';", '@/components/button'),
+    ).toMatchObject({ class: 'internal', target: { file: 'src/components/button.tsx' } });
+  });
+});
+
 describe('resolver classification order', () => {
   it('shares the module identity node:fs between fs and node:fs', () => {
     const h = harness('vite-tanstack-router');
@@ -195,6 +221,44 @@ describe('resolver classification order', () => {
       class: 'ignored',
       target: null,
       reason: 'ignore-unresolved',
+    });
+  });
+});
+
+describe('resolver virtual and asset precedence', () => {
+  it('classifies a virtual name before an asset extension or query', () => {
+    const h = harness('vite-tanstack-router');
+
+    expect(
+      resolveCode(h, 'src/main.tsx', "import '~icons/mdi/home.svg';", '~icons/mdi/home.svg'),
+    ).toEqual({ class: 'virtual', target: null });
+    expect(
+      resolveCode(h, 'src/main.tsx', "import 'virtual:styles.css';", 'virtual:styles.css'),
+    ).toEqual({ class: 'virtual', target: null });
+    expect(resolveInFile(h, 'src/main.tsx', './styles.css')).toEqual({
+      class: 'asset',
+      target: null,
+    });
+    expect(resolveInFile(h, 'src/main.tsx', './logo.svg?react')).toEqual({
+      class: 'asset',
+      target: null,
+    });
+  });
+
+  it('lets a configured virtual pattern win over an asset extension', () => {
+    const h = harness('vite-tanstack-router', { virtual: ['**/*.css'] });
+
+    expect(
+      resolveCode(h, 'src/main.tsx', "import 'assets/styles.css';", 'assets/styles.css'),
+    ).toEqual({ class: 'virtual', target: null });
+  });
+
+  it('keeps builtins ahead of a broad virtual pattern', () => {
+    const h = harness('vite-tanstack-router', { virtual: ['**'] });
+
+    expect(resolveInFile(h, 'src/main.tsx', 'node:fs')).toEqual({
+      class: 'builtin',
+      target: { module: 'node:fs' },
     });
   });
 });
@@ -421,5 +485,37 @@ describe('resolver unsupported sites', () => {
     expect(unsupportedSites('src/index.js', 'const name = "x";\nimport(name);')).toMatchObject([
       { class: 'unsupported', reason: 'non-literal' },
     ]);
+  });
+});
+
+describe('resolver parent path normalization', () => {
+  it('normalizes a parent segment in an alias replacement to the intended sibling', () => {
+    const h = harness('nested-project', { aliases: { '~/': '../../shared/' } });
+
+    expect(resolveCode(h, 'tools/cli/src/b.ts', "import '~/x';", '~/x')).toMatchObject({
+      class: 'internal',
+      target: { file: 'shared/x.ts' },
+    });
+  });
+
+  it('does not clamp an escaping alias onto an in-root lookalike', () => {
+    const h = harness('nested-project', { aliases: { '~/': '../../../../shared/' } });
+
+    const resolution = resolveCode(h, 'tools/cli/src/b.ts', "import '~/x';", '~/x');
+    expect(resolution.class).toBe('unresolved');
+    expect(resolution.target).toBeNull();
+  });
+
+  it('matches ignoreUnresolved against the normalized relative target', () => {
+    const h = harness('nest-nodenext', { ignoreUnresolved: ['**/generated/prisma/**'] });
+
+    expect(
+      resolveCode(
+        h,
+        'src/users/user.repository.ts',
+        "import '../generated/prisma/client.js';",
+        '../generated/prisma/client.js',
+      ),
+    ).toEqual({ class: 'ignored', target: null, reason: 'ignore-unresolved' });
   });
 });

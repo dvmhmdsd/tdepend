@@ -56,7 +56,7 @@ export function createResolver(
   const host = createWorkspaceHost(ctx, fs);
   const caches = new Map<string, ts.ModuleResolutionCache>();
   const workspaceNames = new Set(ctx.packages.map((pkg) => pkg.name));
-  const aliasEntries = Object.entries(options.aliases);
+  const aliasEntries = Object.entries(options.aliases).sort((a, b) => b[0].length - a[0].length);
   const ignoreMatcher = buildMatcher(options.ignoreUnresolved);
   const virtualMatcher = buildMatcher(options.virtual);
 
@@ -241,8 +241,8 @@ export function createResolver(
       if (isBuiltin(specifier)) {
         return { class: 'builtin', target: { module: builtinIdentity(specifier) } };
       }
-      if (isAsset(specifier)) return { class: 'asset', target: null };
       if (isVirtual(specifier)) return { class: 'virtual', target: null };
+      if (isAsset(specifier)) return { class: 'asset', target: null };
 
       const requested = requestedWorkspace(specifier);
       const { options: compilerOptions, entry } = ctx.optionsFor(fromRel);
