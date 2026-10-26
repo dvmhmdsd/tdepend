@@ -1,0 +1,5 @@
+[
+  ["src/main.ts", "src/user.controller.ts", ["static"], true],
+  ["src/user.controller.ts", "src/user.service.ts", ["static"], false],
+  ["src/user.service.ts", "src/user.repository.ts", ["static"], false]
+]

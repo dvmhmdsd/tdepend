@@ -1,0 +1,9 @@
+{
+  "name": "next-app",
+  "private": true,
+  "dependencies": {
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "server-only": "^0.0.1"
+  }
+}

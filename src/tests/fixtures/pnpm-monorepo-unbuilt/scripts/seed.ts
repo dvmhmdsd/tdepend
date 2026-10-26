@@ -1,1 +1,3 @@
-export const seed = 'seed';
+import { util } from './util';
+
+export const seed = util();

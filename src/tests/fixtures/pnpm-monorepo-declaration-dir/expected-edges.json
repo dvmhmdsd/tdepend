@@ -1,0 +1,4 @@
+[
+  ["packages/app/lib/consumer.ts", "packages/js/lib/index.js", ["static"], true],
+  ["packages/app/lib/consumer.ts", "packages/lib/lib/index.ts", ["static"], true]
+]
