@@ -1,0 +1,11 @@
+{
+  "name": "@demo/app",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "@demo/ambig": "workspace:*",
+    "@demo/js": "workspace:*",
+    "@demo/lib": "workspace:*",
+    "@demo/mod": "workspace:*"
+  }
+}

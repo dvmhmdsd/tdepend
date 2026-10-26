@@ -1,1 +1,3 @@
-export const a = 'a';
+import { b } from '@demo/b';
+
+export const a = `a${b}`;

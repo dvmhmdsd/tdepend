@@ -1,0 +1,23 @@
+{
+  "name": "@demo/cond",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    ".": {
+      "import": "./dist/esm.d.ts",
+      "require": "./dist/cjs.d.ts"
+    },
+    "./node-default-null": {
+      "node": "./dist/node.d.ts",
+      "default": null
+    },
+    "./default-first": {
+      "default": "./dist/a.d.ts",
+      "node": "./dist/b.d.ts"
+    },
+    "./browser": {
+      "browser": "./dist/browser.d.ts",
+      "default": "./dist/index.d.ts"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "rootDir": "lib",
+    "declarationDir": "types",
+    "declaration": true,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "strict": true
+  },
+  "include": ["lib"]
+}

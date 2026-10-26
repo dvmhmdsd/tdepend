@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "rootDir": "browser",
+    "outDir": "dist-browser",
+    "declaration": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "customConditions": ["browser"],
+    "strict": true
+  },
+  "include": ["browser"]
+}

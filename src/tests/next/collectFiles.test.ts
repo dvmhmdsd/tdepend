@@ -29,7 +29,9 @@ afterEach(() => {
   }
 });
 
-function collect(options: Partial<{ include: string[]; exclude: string[]; presetSkips: string[] }> = {}) {
+function collect(
+  options: Partial<{ include: string[]; exclude: string[]; presetSkips: string[] }> = {},
+) {
   return collectFiles(discoverProject(FIXTURE), {
     include: options.include ?? [],
     exclude: options.exclude ?? [],
@@ -115,7 +117,11 @@ describe('collectFiles analysis set', () => {
   it('a non-empty include replaces discovery but keeps preset skips', () => {
     const result = collect({ include: ['src/**/*.ts', 'src/**/*.tsx'] });
 
-    expect(result.files).toEqual(['src/main.tsx']);
+    expect(result.files).toEqual([
+      'src/components/button.tsx',
+      'src/features/cart/index.ts',
+      'src/main.tsx',
+    ]);
   });
 
   it('uses / separators and sorts every listing', () => {
@@ -134,7 +140,10 @@ describe('collectFiles symlinks', () => {
   it('a symlink pointing outside the root is skipped with reason outside-root', (testContext) => {
     const dir = mkdtempSync(join(tmpdir(), 'tdepend-collect-'));
     tempDirs.push(dir);
-    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'linked-root', private: true }));
+    writeFileSync(
+      join(dir, 'package.json'),
+      JSON.stringify({ name: 'linked-root', private: true }),
+    );
 
     try {
       symlinkSync(FIXTURE, join(dir, 'linked'), 'junction');

@@ -1,0 +1,6 @@
+{
+  "name": "@demo/ambig",
+  "version": "0.0.0",
+  "private": true,
+  "types": "./types/thing.d.ts"
+}
