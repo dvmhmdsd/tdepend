@@ -34,8 +34,12 @@ describe('discoverProject workspace packages', () => {
   it('lists workspace packages from pnpm-workspace.yaml with directory ids', () => {
     const ctx = discoverProject(fixture('pnpm-monorepo'));
 
-    expect(ctx.packages.map((p) => p.id)).toEqual(['pkg:packages/a', 'pkg:packages/b']);
-    expect(ctx.packages.map((p) => p.name)).toEqual(['@demo/a', '@demo/b']);
+    expect(ctx.packages.map((p) => p.id)).toEqual([
+      'pkg:packages/a',
+      'pkg:packages/b',
+      'pkg:packages/cond',
+    ]);
+    expect(ctx.packages.map((p) => p.name)).toEqual(['@demo/a', '@demo/b', '@demo/cond']);
   });
 
   it('lists workspace packages from package.json workspaces', () => {

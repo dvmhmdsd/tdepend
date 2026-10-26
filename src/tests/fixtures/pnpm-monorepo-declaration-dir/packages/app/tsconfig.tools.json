@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "rootDir": "tools",
+    "outDir": "dist-tools",
+    "declaration": true,
+    "allowJs": true,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "strict": true
+  },
+  "include": ["tools"]
+}

@@ -1,5 +1,14 @@
 {
   "name": "@demo/b",
   "version": "0.0.0",
-  "private": true
+  "private": true,
+  "exports": {
+    ".": "./dist/index.d.ts",
+    "./import-only": {
+      "import": "./dist/import-only.d.ts",
+      "require": null
+    },
+    "./blocked": null,
+    "./*": "./dist/*.d.ts"
+  }
 }

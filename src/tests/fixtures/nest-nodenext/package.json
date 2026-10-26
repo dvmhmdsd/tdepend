@@ -1,0 +1,10 @@
+{
+  "name": "nest-nodenext",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@nestjs/core": "^11.0.0",
+    "@prisma/client": "^6.0.0",
+    "prisma": "^6.0.0"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "nest-monorepo-paths",
+  "private": true,
+  "dependencies": {
+    "@nestjs/core": "^11.0.0"
+  }
+}

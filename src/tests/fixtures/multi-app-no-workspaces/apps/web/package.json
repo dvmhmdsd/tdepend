@@ -2,6 +2,7 @@
   "name": "@demo/web",
   "private": true,
   "dependencies": {
+    "left-pad": "^1.3.0",
     "next": "^15.0.0",
     "react": "^19.0.0"
   }

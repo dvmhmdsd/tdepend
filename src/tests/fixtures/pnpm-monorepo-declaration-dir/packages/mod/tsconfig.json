@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "rootDir": "lib",
+    "outDir": "dist",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "strict": true
+  },
+  "include": ["lib"]
+}
