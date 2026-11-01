@@ -5,8 +5,8 @@ import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import * as ts from 'typescript';
 
-import { ConfigError } from '../../next/errors';
-import { discoverProject } from '../../next/project/discoverProject';
+import { ConfigError } from '../errors';
+import { discoverProject } from '../project/discoverProject';
 
 const FIXTURES = join(process.cwd(), 'src', 'tests', 'fixtures');
 const fixture = (name: string): string => join(FIXTURES, name);

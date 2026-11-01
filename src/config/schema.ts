@@ -1,58 +1,55 @@
 import { z } from 'zod';
 
-export const configSchema = z.object({
-  rootDir: z.string().default('src'),
-  include: z.array(z.string()).default(['src/**/*.ts', 'src/**/*.tsx']),
-  exclude: z.array(z.string()).default(['**/*.test.ts', '**/*.spec.ts', 'dist']),
-  metrics: z
-    .object({
-      enabled: z
-        .array(z.enum(['coupling', 'abstractness', 'distance', 'cycles']))
-        .default(['coupling', 'abstractness', 'distance', 'cycles']),
-      thresholds: z
-        .object({
-          distance: z.number().min(0).max(1).default(0.6),
-        })
-        .default({ distance: 0.6 }),
-    })
-    .default({
-      enabled: ['coupling', 'abstractness', 'distance', 'cycles'],
-      thresholds: { distance: 0.6 },
-    }),
-  analysis: z
-    .object({
-      target: z.enum(['module', 'class', 'namespace']).nullable().default(null),
-      value: z.string().nullable().default(null),
-    })
-    .default({ target: null, value: null }),
-  ci: z
-    .object({
-      failOnThreshold: z.boolean().default(true),
-      failOnCycle: z.boolean().default(false),
-      outputFormat: z.enum(['console', 'json']).default('console'),
-    })
-    .default({ failOnThreshold: true, failOnCycle: false, outputFormat: 'console' }),
+const coverageSchema = z.strictObject({
+  requireAll: z.boolean().default(false),
+  allowUnmatched: z.array(z.string()).default([]),
 });
 
-export type TDependConfig = z.infer<typeof configSchema>;
+export const componentsSchema = z.discriminatedUnion('type', [
+  z.strictObject({
+    type: z.literal('directory'),
+    patterns: z.array(z.string()),
+    coverage: coverageSchema.optional(),
+  }),
+  z.strictObject({
+    type: z.literal('nest-module'),
+    coverage: coverageSchema.optional(),
+  }),
+  z.strictObject({
+    type: z.literal('file'),
+  }),
+]);
 
-export const defaultConfig: TDependConfig = {
-  rootDir: 'src',
-  include: ['src/**/*.ts', 'src/**/*.tsx'],
-  exclude: ['**/*.test.ts', '**/*.spec.ts', 'dist'],
-  metrics: {
-    enabled: ['coupling', 'abstractness', 'distance', 'cycles'],
-    thresholds: {
-      distance: 0.6,
-    },
-  },
-  analysis: {
-    target: null,
-    value: null,
-  },
-  ci: {
-    failOnThreshold: true,
-    failOnCycle: false,
-    outputFormat: 'console',
-  },
-};
+const resolveSchema = z.strictObject({
+  aliases: z.record(z.string(), z.string()).default({}),
+  virtual: z.array(z.string()).default([]),
+  ignoreUnresolved: z.array(z.string()).default([]),
+});
+
+const metricsSchema = z.strictObject({
+  abstractness: z.enum(['implemented', 'jdepend']).default('implemented'),
+  thresholds: z
+    .strictObject({
+      distance: z.number().min(0).max(1).nullable().default(null),
+    })
+    .default({ distance: null }),
+});
+
+export const configSchema = z.strictObject({
+  root: z.string().default('.'),
+  presets: z.array(z.string()).default(['auto']),
+  include: z.array(z.string()).default([]),
+  exclude: z.array(z.string()).default([]),
+  typeOnly: z.enum(['usage', 'syntax']).default('usage'),
+  compilers: z
+    .array(z.enum(['tsc', 'esbuild', 'swc']))
+    .min(1)
+    .default(['tsc', 'esbuild', 'swc']),
+  resolve: resolveSchema.default({ aliases: {}, virtual: [], ignoreUnresolved: [] }),
+  metrics: metricsSchema.default({ abstractness: 'implemented', thresholds: { distance: null } }),
+  rules: z.array(z.unknown()).default([]),
+  baseline: z.string().nullable().default(null),
+  components: componentsSchema.optional(),
+});
+
+export type UserConfig = z.infer<typeof configSchema>;

@@ -85,8 +85,6 @@ for (const metric of result.metrics) {
 - `parseProject(files)` - Parse TypeScript files
 - `scanFiles(config)` - Scan files matching patterns
 
-See the [examples](./examples) directory for more usage patterns.
-
 ## Configuration
 
 TDepend looks for `tdepend.config.json` in the current directory.
@@ -160,7 +158,6 @@ src/
   index.ts       # Library entry point
 
 dist/            # Compiled output
-examples/        # Usage examples
 ```
 
 ## License

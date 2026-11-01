@@ -1,144 +1,97 @@
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { ConfigError, ParseError } from '../errors';
 import { loadConfig } from '../config/loadConfig';
-import { defaultConfig } from '../config/schema';
+import { componentsSchema } from '../config/schema';
 
-const TEST_DIR = join(process.cwd(), '.test-configs');
+let dir: string;
 
-describe('Config System', () => {
-  beforeEach(() => {
-    if (!existsSync(TEST_DIR)) {
-      mkdirSync(TEST_DIR, { recursive: true });
-    }
+beforeEach(() => {
+  dir = mkdtempSync(join(tmpdir(), 'tdepend-config-'));
+});
+
+afterEach(() => {
+  rmSync(dir, { recursive: true, force: true });
+});
+
+function writeConfig(value: unknown): void {
+  writeFileSync(join(dir, 'tdepend.config.json'), JSON.stringify(value));
+}
+
+describe('loadConfig', () => {
+  it('applies defaults when no config file exists', () => {
+    const { config, configFile } = loadConfig({ cwd: dir });
+
+    expect(configFile).toBeNull();
+    expect(config.presets).toEqual(['auto']);
+    expect(config.typeOnly).toBe('usage');
+    expect(config.compilers).toEqual(['tsc', 'esbuild', 'swc']);
+    expect(config.metrics.abstractness).toBe('implemented');
+    expect(config.exclude).toEqual([]);
+    expect(config.baseline).toBeNull();
   });
 
-  afterEach(() => {
-    if (existsSync(TEST_DIR)) {
-      rmSync(TEST_DIR, { recursive: true, force: true });
-    }
-  });
-
-  it('loads default config when no file exists', () => {
-    const config = loadConfig();
-    expect(config).toEqual(defaultConfig);
-  });
-
-  it('loads config from custom path', () => {
-    const configPath = join(TEST_DIR, 'custom.config.json');
-    const customConfig = {
-      rootDir: 'lib',
-      include: ['lib/**/*.ts'],
-    };
-    writeFileSync(configPath, JSON.stringify(customConfig, null, 2));
-
-    const config = loadConfig(configPath);
-    expect(config.rootDir).toBe('lib');
-    expect(config.include).toEqual(['lib/**/*.ts']);
-    // Should merge with defaults
-    expect(config.metrics.enabled).toEqual(defaultConfig.metrics.enabled);
-  });
-
-  it('throws error when custom config file not found', () => {
-    expect(() => loadConfig('/nonexistent/path.json')).toThrow('Config file not found');
-  });
-
-  it('throws error for invalid JSON', () => {
-    const configPath = join(TEST_DIR, 'invalid.json');
-    writeFileSync(configPath, '{ invalid json }');
-
-    expect(() => loadConfig(configPath)).toThrow('Invalid JSON');
-  });
-
-  it('validates config with Zod schema', () => {
-    const configPath = join(TEST_DIR, 'invalid-schema.json');
-    const invalidConfig = {
-      metrics: {
-        thresholds: {
-          distance: 2.5, // Invalid: should be between 0 and 1
-        },
-      },
-    };
-    writeFileSync(configPath, JSON.stringify(invalidConfig, null, 2));
-
-    expect(() => loadConfig(configPath)).toThrow('Config validation failed');
-  });
-
-  it('merges partial config with defaults', () => {
-    const configPath = join(TEST_DIR, 'partial.json');
-    const partialConfig = {
-      metrics: {
-        thresholds: {
-          distance: 0.8,
-        },
-      },
-    };
-    writeFileSync(configPath, JSON.stringify(partialConfig, null, 2));
-
-    const config = loadConfig(configPath);
-    expect(config.metrics.thresholds.distance).toBe(0.8);
-    expect(config.metrics.enabled).toEqual(defaultConfig.metrics.enabled);
-    expect(config.rootDir).toBe(defaultConfig.rootDir);
-  });
-
-  it('finds tdepend.config.json in current directory', () => {
-    const configPath = join(process.cwd(), 'tdepend.config.json');
-    const customConfig = { rootDir: 'tdepend-test' };
-    writeFileSync(configPath, JSON.stringify(customConfig, null, 2));
+  it('rejects unknown keys with exit 2 and lists them', () => {
+    writeConfig({ foo: 1, bar: 2 });
 
     try {
-      const config = loadConfig();
-      expect(config.rootDir).toBe('tdepend-test');
-    } finally {
-      rmSync(configPath, { force: true });
+      loadConfig({ cwd: dir });
+      expect.unreachable('expected ConfigError');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ConfigError);
+      expect((error as ConfigError).exitCode).toBe(2);
+      expect((error as Error).message).toContain('foo');
+      expect((error as Error).message).toContain('bar');
     }
   });
 
+  it('accepts an exclude entry starting with !', () => {
+    writeConfig({ exclude: ['!**/public/**'] });
 
-
-
-
-  it('supports all metric types', () => {
-    const configPath = join(TEST_DIR, 'metrics.json');
-    const metricsConfig = {
-      metrics: {
-        enabled: ['coupling', 'abstractness'],
-      },
-    };
-    writeFileSync(configPath, JSON.stringify(metricsConfig, null, 2));
-
-    const config = loadConfig(configPath);
-    expect(config.metrics.enabled).toEqual(['coupling', 'abstractness']);
+    const { config } = loadConfig({ cwd: dir });
+    expect(config.exclude).toEqual(['!**/public/**']);
   });
 
-  it('supports analysis target configuration', () => {
-    const configPath = join(TEST_DIR, 'analysis.json');
-    const analysisConfig = {
-      analysis: {
-        target: 'class',
-        value: 'UserService',
-      },
-    };
-    writeFileSync(configPath, JSON.stringify(analysisConfig, null, 2));
+  it('defaults compilers and rejects unknown names and an empty list', () => {
+    expect(loadConfig({ cwd: dir }).config.compilers).toEqual(['tsc', 'esbuild', 'swc']);
 
-    const config = loadConfig(configPath);
-    expect(config.analysis.target).toBe('class');
-    expect(config.analysis.value).toBe('UserService');
+    writeConfig({ compilers: [] });
+    expect(() => loadConfig({ cwd: dir })).toThrow(ConfigError);
+
+    writeConfig({ compilers: ['tsc', 'webpack'] });
+    expect(() => loadConfig({ cwd: dir })).toThrow(ConfigError);
   });
 
-  it('supports CI configuration', () => {
-    const configPath = join(TEST_DIR, 'ci.json');
-    const ciConfig = {
-      ci: {
-        failOnThreshold: false,
-        outputFormat: 'json',
-      },
-    };
-    writeFileSync(configPath, JSON.stringify(ciConfig, null, 2));
+  it('accepts components directory, nest-module and file and rejects package', () => {
+    expect(componentsSchema.safeParse({ type: 'directory', patterns: ['src/*'] }).success).toBe(true);
+    expect(componentsSchema.safeParse({ type: 'nest-module' }).success).toBe(true);
+    expect(componentsSchema.safeParse({ type: 'file' }).success).toBe(true);
+    expect(componentsSchema.safeParse({ type: 'package' }).success).toBe(false);
+  });
 
-    const config = loadConfig(configPath);
-    expect(config.ci.failOnThreshold).toBe(false);
-    expect(config.ci.outputFormat).toBe('json');
+  it('reports invalid JSON as a ParseError naming the file', () => {
+    writeFileSync(join(dir, 'tdepend.config.json'), '{ invalid json }');
+
+    try {
+      loadConfig({ cwd: dir });
+      expect.unreachable('expected ParseError');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ParseError);
+      expect((error as ParseError).exitCode).toBe(2);
+      expect((error as ParseError).file).toContain('tdepend.config.json');
+    }
+  });
+
+  it('honours an explicit configPath and rejects a missing one', () => {
+    writeFileSync(join(dir, 'custom.json'), JSON.stringify({ typeOnly: 'syntax' }));
+
+    const { config, configFile } = loadConfig({ cwd: dir, configPath: 'custom.json' });
+    expect(config.typeOnly).toBe('syntax');
+    expect(configFile).toContain('custom.json');
+
+    expect(() => loadConfig({ cwd: dir, configPath: 'missing.json' })).toThrow(ConfigError);
   });
 });

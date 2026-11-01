@@ -1,6 +1,6 @@
 {
   "name": "tdepend",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "JDepend-inspired dependency analysis tool for TypeScript",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -23,7 +23,8 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "pnpm run clean && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
     "dev": "ts-node src/cli/index.ts analyze --help",
     "cli": "node dist/cli/index.js",
@@ -65,7 +66,6 @@
     "commander": "^15.0.0",
     "glob": "^13.0.0",
     "picomatch": "^4.0.0",
-    "ts-morph": "^27.0.2",
     "typescript": "5.9.3",
     "yaml": "^2.0.0",
     "zod": "^4.1.13"

@@ -1,15 +1,15 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { DEFAULT_SKIPS, collectFiles } from '../../../next/files/collectFiles';
-import type { FileSystemLike } from '../../../next/fs';
-import { buildFileGraph, type BuildGraphResult } from '../../../next/graph/buildFileGraph';
-import type { FileEdge } from '../../../next/graph/fileGraph';
-import type { Compiler } from '../../../next/parser/loadsTarget';
-import type { EdgeKind } from '../../../next/parser/types';
-import { discoverProject } from '../../../next/project/discoverProject';
-import { createResolver } from '../../../next/resolver/createResolver';
-import type { ResolveOptions } from '../../../next/resolver/types';
+import { DEFAULT_SKIPS, collectFiles } from '../../files/collectFiles';
+import type { FileSystemLike } from '../../fs';
+import { buildFileGraph, type BuildGraphResult } from '../../graph/buildFileGraph';
+import type { FileEdge } from '../../graph/fileGraph';
+import type { Compiler } from '../../parser/loadsTarget';
+import type { EdgeKind } from '../../parser/types';
+import { discoverProject } from '../../project/discoverProject';
+import { createResolver } from '../../resolver/createResolver';
+import type { ResolveOptions } from '../../resolver/types';
 
 export const FIXTURES = join(process.cwd(), 'src', 'tests', 'fixtures');
 

@@ -1,80 +1,87 @@
-import { createHash } from 'crypto';
-import type { DependencyGraph } from '../graph/dependencyGraph';
+import type { SiteRecord } from '../graph/buildFileGraph';
+import type { FileEdge } from '../graph/fileGraph';
 import type {
   AnalysisResult,
-  SerializableAnalysisResult,
-  SerializableDependencyGraph,
-  SerializableDependencyNode,
-  SerializableCycle,
+  SerializableEdge,
+  SerializableReport,
+  SerializableResult,
+  SerializableSite,
+  SerializableSiteLocation,
+  SerializableUnsupported,
 } from '../types/api';
 
 /**
- * Converts a DependencyGraph with Sets to a serializable format with Arrays.
- * @param graph - The dependency graph to serialize
- * @returns Serializable graph with array-based relationships
+ * Projects an analysis into its versioned, fully sorted export shape. The
+ * parser's `ts.Node` references and the project context are dropped here, so
+ * the result is plain data with no timestamp.
  */
-export function serializeGraph(graph: DependencyGraph): SerializableDependencyGraph {
-  const nodes: SerializableDependencyNode[] = graph.getAllNodes().map((node) => ({
-    filePath: node.filePath,
-    dependencies: Array.from(node.dependencies).sort(),
-    dependents: Array.from(node.dependents).sort(),
-  }));
-
-  return { nodes };
-}
-
-/**
- * Normalizes a cycle for consistent identification across runs.
- * Creates a unique ID based on the cycle's contents and rotates the cycle
- * to start with the lexicographically smallest file path.
- *
- * @param cycle - Array of file paths forming a cycle
- * @returns Normalized cycle with unique ID
- */
-export function normalizeCycle(cycle: string[]): SerializableCycle {
-  if (cycle.length === 0) {
-    return {
-      id: '',
-      nodes: [],
-      length: 0,
-    };
-  }
-
-  // Create stable ID by hashing sorted paths
-  const sorted = [...cycle].sort();
-  const id = createHash('sha256').update(sorted.join('|')).digest('hex').slice(0, 16);
-
-  // Rotate cycle to start with lexicographically smallest element
-  const minPath = sorted[0];
-  const minIndex = cycle.indexOf(minPath);
-  const normalized = [...cycle.slice(minIndex), ...cycle.slice(0, minIndex)];
-
+export function toSerializable(result: AnalysisResult): SerializableResult {
   return {
-    id,
-    nodes: normalized,
-    length: cycle.length,
+    version: 1,
+    files: result.graph.files(),
+    edges: result.graph.edges().map(serializeEdge),
+    sites: [...result.sites].sort(compareRecords).map(serializeSite),
+    report: serializeReport(result),
   };
 }
 
-/**
- * Converts an AnalysisResult with rich objects to a fully serializable format.
- * This includes:
- * - Converting Sets to Arrays in the dependency graph
- * - Normalizing cycles with unique IDs
- * - Adding version and timestamp metadata
- *
- * @param result - The analysis result to serialize
- * @returns Fully serializable result ready for JSON.stringify
- */
-export function toSerializable(result: AnalysisResult): SerializableAnalysisResult {
+function serializeSite(record: SiteRecord): SerializableSite {
+  const { site, resolution } = record;
   return {
-    version: '1.0.0',
-    timestamp: new Date().toISOString(),
-    config: result.config,
-    modules: result.modules,
-    graph: serializeGraph(result.graph),
-    cycles: result.cycles.map(normalizeCycle),
-    metrics: result.metrics,
-    report: result.report,
+    file: record.file,
+    specifier: site.specifier,
+    line: site.line,
+    column: site.column,
+    kind: site.kind,
+    form: site.form,
+    deferred: site.deferred === true,
+    unsupported: site.unsupported ?? null,
+    loadsTarget: site.loadsTarget === true,
+    loadsTargetBy: site.loadsTargetBy ?? null,
+    class: resolution.class,
+    target: resolution.target,
+    mapped: resolution.mapped?.from ?? null,
+    requested: resolution.requested ?? null,
   };
+}
+
+function serializeEdge(edge: FileEdge): SerializableEdge {
+  return {
+    from: edge.from,
+    to: edge.to,
+    runtime: edge.runtime,
+    mapped: edge.mapped,
+    kinds: [...new Set(edge.sites.map((site) => site.kind))].sort(),
+  };
+}
+
+function serializeReport(result: AnalysisResult): SerializableReport {
+  return {
+    stats: { ...result.report.stats },
+    unresolved: result.report.unresolved.map(siteLocation),
+    ignoredByDir: { ...result.report.ignoredByDir },
+    unsupported: result.report.unsupported.map(serializeUnsupported),
+    selfImports: [...result.report.selfImports],
+    uncovered: [...result.report.uncovered],
+    skipped: result.report.skipped.map((entry) => ({ file: entry.file, reason: entry.reason })),
+  };
+}
+
+function siteLocation(record: SiteRecord): SerializableSiteLocation {
+  return {
+    file: record.file,
+    line: record.site.line,
+    column: record.site.column,
+    specifier: record.site.specifier,
+  };
+}
+
+function serializeUnsupported(record: SiteRecord): SerializableUnsupported {
+  return { ...siteLocation(record), reason: record.resolution.reason ?? '' };
+}
+
+function compareRecords(a: SiteRecord, b: SiteRecord): number {
+  if (a.file !== b.file) return a.file < b.file ? -1 : 1;
+  if (a.site.line !== b.site.line) return a.site.line - b.site.line;
+  return a.site.column - b.site.column;
 }

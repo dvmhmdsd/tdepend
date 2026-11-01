@@ -4,9 +4,9 @@ import { join } from 'node:path';
 import * as ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
-import { parseFile } from '../../next/parser/extractSites';
-import { classifyLoads, type Compiler } from '../../next/parser/loadsTarget';
-import type { ImportSite, ParsedFile } from '../../next/parser/types';
+import { parseFile } from '../parser/extractSites';
+import { classifyLoads, type Compiler } from '../parser/loadsTarget';
+import type { ImportSite, ParsedFile } from '../parser/types';
 
 const FIXTURE = join(process.cwd(), 'src', 'tests', 'fixtures', 'compiler-elision');
 const DEFAULT_COMPILERS: Compiler[] = ['tsc', 'esbuild', 'swc'];
