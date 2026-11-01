@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { posixJoin } from '../../next/resolver/workspaceHost';
+import { posixJoin } from '../resolver/workspaceHost';
 
 describe('posixJoin lexical parent normalization', () => {
   it('cancels a parent against the preceding segment', () => {

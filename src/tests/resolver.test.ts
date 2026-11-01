@@ -3,12 +3,12 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_SKIPS, collectFiles } from '../../next/files/collectFiles';
-import { parseFile } from '../../next/parser/extractSites';
-import { discoverProject } from '../../next/project/discoverProject';
-import type { ProjectContext } from '../../next/project/types';
-import { createResolver } from '../../next/resolver/createResolver';
-import type { Resolution, ResolveOptions, Resolver } from '../../next/resolver/types';
+import { DEFAULT_SKIPS, collectFiles } from '../files/collectFiles';
+import { parseFile } from '../parser/extractSites';
+import { discoverProject } from '../project/discoverProject';
+import type { ProjectContext } from '../project/types';
+import { createResolver } from '../resolver/createResolver';
+import type { Resolution, ResolveOptions, Resolver } from '../resolver/types';
 
 const FIXTURES = join(process.cwd(), 'src', 'tests', 'fixtures');
 

@@ -4,8 +4,8 @@ import { dirname, join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { ParseError } from '../../next/errors';
-import { nodeFileSystem, type FileSystemLike } from '../../next/fs';
+import { ParseError } from '../errors';
+import { nodeFileSystem, type FileSystemLike } from '../fs';
 import { FIXTURES, buildFixture, edgeTuples, expectedEdges } from './helpers/fixtureGraph';
 
 const REPO_FIXTURES = [

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseFile } from '../../next/parser/extractSites';
-import type { ImportSite } from '../../next/parser/types';
+import { parseFile } from '../parser/extractSites';
+import type { ImportSite } from '../parser/types';
 
 function sitesOf(text: string, file = 'src/a.ts'): ImportSite[] {
   return parseFile(file, text, {}).sites;

@@ -5,8 +5,8 @@ import { join } from 'node:path';
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-import { collectFiles, DEFAULT_SKIPS, type CollectResult } from '../../next/files/collectFiles';
-import { discoverProject } from '../../next/project/discoverProject';
+import { collectFiles, DEFAULT_SKIPS, type CollectResult } from '../files/collectFiles';
+import { discoverProject } from '../project/discoverProject';
 
 const FIXTURES = join(process.cwd(), 'src', 'tests', 'fixtures');
 const FIXTURE = join(FIXTURES, 'vite-tanstack-router');
