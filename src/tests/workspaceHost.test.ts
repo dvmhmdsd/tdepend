@@ -1,6 +1,19 @@
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
-import { posixJoin } from '../resolver/workspaceHost';
+import { nodeFileSystem } from '../fs';
+import { discoverProject } from '../project/discoverProject';
+import { createWorkspaceHost, posixJoin } from '../resolver/workspaceHost';
+
+describe('createWorkspaceHost', () => {
+  it('getDirectories lists directories only', () => {
+    const root = join(process.cwd(), 'src', 'tests', 'fixtures', 'pnpm-monorepo');
+    const host = createWorkspaceHost(discoverProject(root), nodeFileSystem());
+
+    expect(host.getDirectories?.(join(root, 'packages', 'a'))).toEqual(['browser', 'dist', 'src']);
+  });
+});
 
 describe('posixJoin lexical parent normalization', () => {
   it('cancels a parent against the preceding segment', () => {

@@ -46,6 +46,20 @@ const ASSET_EXTENSIONS = new Set([
 ]);
 
 const IGNORE_TARGET_SUFFIXES = ['', '/index.ts', '/index.tsx', '.ts', '.tsx'];
+const GITIGNORE_TARGET_SUFFIXES = [
+  '',
+  '.ts',
+  '.tsx',
+  '.mts',
+  '.cts',
+  '.js',
+  '.jsx',
+  '.mjs',
+  '.cjs',
+  '/index.ts',
+  '/index.tsx',
+  '/index.js',
+];
 
 export function createResolver(
   ctx: ProjectContext,
@@ -109,14 +123,9 @@ export function createResolver(
 
   function leafClass(fromRel: string, targetRel: string): ResolutionClass {
     if (!analysisFiles.has(targetRel)) return 'excluded';
-    if (ctx.packages.length === 0) return 'internal';
-
-    const fromPackage = ctx.packageFor(fromRel);
-    const toPackage = ctx.packageFor(targetRel);
-    if (fromPackage !== null && toPackage !== null && fromPackage.id !== toPackage.id) {
-      return 'workspace';
-    }
-    return 'internal';
+    const fromPackage = ctx.packageFor(fromRel)?.id ?? null;
+    const toPackage = ctx.packageFor(targetRel)?.id ?? null;
+    return fromPackage === toPackage ? 'internal' : 'workspace';
   }
 
   function classifyResolved(
@@ -127,7 +136,10 @@ export function createResolver(
   ): Resolution {
     const redirected = redirectWorkspacePath(resolved.resolvedFileName, ctx);
 
-    if (requested === undefined && isNodeModulesPath(toPosix(redirected))) {
+    if (
+      requested === undefined &&
+      (resolved.isExternalLibraryImport === true || isNodeModulesPath(toPosix(redirected)))
+    ) {
       return { class: 'external', target: { module: specifier } };
     }
 
@@ -200,7 +212,7 @@ export function createResolver(
         return { class: 'ignored', target: null, reason: 'ignore-unresolved' };
       }
       const targetAbs = join(ctx.rootDir, targetRel);
-      if (ctx.isIgnored(targetAbs) || ctx.isIgnored(`${targetAbs}/index.ts`)) {
+      if (GITIGNORE_TARGET_SUFFIXES.some((suffix) => ctx.isIgnored(`${targetAbs}${suffix}`))) {
         return { class: 'ignored', target: null, reason: 'gitignored' };
       }
       return { class: 'unresolved', target: null, requested };
@@ -241,10 +253,10 @@ export function createResolver(
       if (isBuiltin(specifier)) {
         return { class: 'builtin', target: { module: builtinIdentity(specifier) } };
       }
-      if (isVirtual(specifier)) return { class: 'virtual', target: null };
-      if (isAsset(specifier)) return { class: 'asset', target: null };
-
       const requested = requestedWorkspace(specifier);
+      if (isVirtual(specifier)) return { class: 'virtual', target: null, requested };
+      if (isAsset(specifier)) return { class: 'asset', target: null, requested };
+
       const { options: compilerOptions, entry } = ctx.optionsFor(fromRel);
       const mode = ts.getModeForUsageLocation(
         parsed.sourceFile,

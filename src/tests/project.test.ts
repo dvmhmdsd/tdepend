@@ -38,8 +38,14 @@ describe('discoverProject workspace packages', () => {
       'pkg:packages/a',
       'pkg:packages/b',
       'pkg:packages/cond',
+      'pkg:packages/esm',
     ]);
-    expect(ctx.packages.map((p) => p.name)).toEqual(['@demo/a', '@demo/b', '@demo/cond']);
+    expect(ctx.packages.map((p) => p.name)).toEqual([
+      '@demo/a',
+      '@demo/b',
+      '@demo/cond',
+      '@demo/esm',
+    ]);
   });
 
   it('lists workspace packages from package.json workspaces', () => {

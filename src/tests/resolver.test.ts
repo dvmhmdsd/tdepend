@@ -1,7 +1,8 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { DEFAULT_SKIPS, collectFiles } from '../files/collectFiles';
 import { parseFile } from '../parser/extractSites';
@@ -19,8 +20,24 @@ interface Harness {
   files: Set<string>;
 }
 
+const tempDirs: string[] = [];
+
+afterEach(() => {
+  for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
+
+function tempProject(files: Record<string, string>): string {
+  const dir = mkdtempSync(join(tmpdir(), 'tdepend-resolver-'));
+  tempDirs.push(dir);
+  for (const [rel, content] of Object.entries(files)) {
+    mkdirSync(dirname(join(dir, rel)), { recursive: true });
+    writeFileSync(join(dir, rel), content);
+  }
+  return dir;
+}
+
 function harness(name: string, options: Partial<ResolveOptions> = {}): Harness {
-  const root = join(FIXTURES, name);
+  const root = name.startsWith('/') ? name : join(FIXTURES, name);
   const ctx = discoverProject(root);
   const collected = collectFiles(ctx, {
     include: [],
@@ -38,7 +55,7 @@ function harness(name: string, options: Partial<ResolveOptions> = {}): Harness {
 
 function siteOf(harness: Harness, file: string, code: string, specifier: string) {
   const { options } = harness.ctx.optionsFor(file);
-  const parsed = parseFile(file, code, options);
+  const parsed = parseFile(file, code, options, join(harness.root, file));
   const site = parsed.sites.find((candidate) => candidate.specifier === specifier);
   if (site === undefined) throw new Error(`no site "${specifier}" in ${file}`);
   return { parsed, site };
@@ -214,8 +231,29 @@ describe('resolver classification order', () => {
     ).toEqual({ class: 'ignored', target: null, reason: 'gitignored' });
   });
 
+  it('matches a gitignored target through an extensionless specifier', () => {
+    const h = harness('vite-tanstack-router-missing-gen');
+
+    expect(resolveInFile(h, 'src/main.tsx', './routeTree.gen')).toEqual({
+      class: 'ignored',
+      target: null,
+      reason: 'gitignored',
+    });
+  });
+
+  it('a present but gitignored target is excluded, with its file', () => {
+    const h = harness('vite-tanstack-router');
+
+    expect(resolveInFile(h, 'src/main.tsx', './routeTree.gen')).toMatchObject({
+      class: 'excluded',
+      target: { file: 'src/routeTree.gen.ts' },
+    });
+  });
+
   it('reports a relative specifier matching ignoreUnresolved as ignored', () => {
-    const h = harness('vite-tanstack-router', { ignoreUnresolved: ['**/routeTree.gen'] });
+    const h = harness('vite-tanstack-router-missing-gen', {
+      ignoreUnresolved: ['**/routeTree.gen'],
+    });
 
     expect(resolveInFile(h, 'src/main.tsx', './routeTree.gen')).toEqual({
       class: 'ignored',
@@ -285,6 +323,9 @@ describe('resolver workspace packages', () => {
       ['packages/a/src/esm.mts', '@demo/cond'],
       ['packages/a/src/conditions.ts', '@demo/cond/node-default-null'],
       ['packages/a/src/conditions.ts', '@demo/cond/default-first'],
+      ['packages/a/src/conditions.ts', '@demo/cond/default-null-node'],
+      ['packages/esm/src/index.ts', '@demo/cond'],
+      ['scripts/seed.ts', '@demo/b'],
     ];
 
     for (const [file, specifier] of probes) {
@@ -340,6 +381,28 @@ describe('resolver workspace packages', () => {
     });
   });
 
+  it('classes an import from the workspace root into a package as workspace', () => {
+    const h = harness('pnpm-monorepo');
+
+    expect(resolveInFile(h, 'scripts/seed.ts', '@demo/b')).toMatchObject({
+      class: 'workspace',
+      target: { file: 'packages/b/src/index.ts' },
+    });
+    expect(resolveInFile(h, 'scripts/seed.ts', './util')).toMatchObject({ class: 'internal' });
+  });
+
+  it('records the workspace request on asset and virtual sites too', () => {
+    const h = harness('pnpm-monorepo');
+
+    expect(
+      resolveCode(h, 'packages/a/src/index.ts', "import '@demo/b/logo.svg';", '@demo/b/logo.svg'),
+    ).toEqual({
+      class: 'asset',
+      target: null,
+      requested: { package: '@demo/b', subpath: './logo.svg' },
+    });
+  });
+
   it('never classes a workspace specifier as external', () => {
     const h = harness('pnpm-monorepo');
 
@@ -368,6 +431,26 @@ describe('resolver conditions and resolution mode', () => {
       class: 'workspace',
       target: { file: 'packages/cond/src/esm.ts' },
     });
+  });
+
+  it('a .ts file in a "type": "module" package resolves with the import condition', () => {
+    const h = harness('pnpm-monorepo');
+
+    expect(resolveInFile(h, 'packages/esm/src/index.ts', '@demo/cond')).toMatchObject({
+      class: 'workspace',
+      target: { file: 'packages/cond/src/esm.ts' },
+    });
+    expect(
+      resolveCode(h, 'packages/a/src/index.ts', "import { x } from '@demo/cond';", '@demo/cond'),
+    ).toMatchObject({ target: { file: 'packages/cond/src/cjs.ts' } });
+  });
+
+  it('skips a null default condition that comes first and continues to node', () => {
+    const h = harness('pnpm-monorepo');
+
+    expect(
+      resolveInFile(h, 'packages/a/src/conditions.ts', '@demo/cond/default-null-node'),
+    ).toMatchObject({ class: 'workspace', target: { file: 'packages/cond/src/node.ts' } });
   });
 
   it('matches the node condition under NodeNext and is blocked when only default is left', () => {
@@ -456,6 +539,37 @@ describe('resolver node_modules', () => {
         'left-pad',
       ),
     ).toEqual({ class: 'external', target: { module: 'left-pad' } });
+  });
+
+  it('classes a linked package that realpaths outside node_modules as external', (testContext) => {
+    const dir = tempProject({
+      'package.json': JSON.stringify({ name: 'app', dependencies: { linked: 'file:vendor/linked' } }),
+      'tsconfig.json': JSON.stringify({
+        compilerOptions: { module: 'commonjs', moduleResolution: 'node' },
+        include: ['src'],
+      }),
+      'src/a.ts': "import { x } from 'linked';\nexport const y = x;\n",
+      'vendor/linked/package.json': JSON.stringify({ name: 'linked', main: 'index.js' }),
+      'vendor/linked/index.js': 'module.exports = { x: 1 };\n',
+      'vendor/linked/index.d.ts': 'export const x: number;\n',
+    });
+    mkdirSync(join(dir, 'node_modules'));
+    try {
+      symlinkSync(join(dir, 'vendor', 'linked'), join(dir, 'node_modules', 'linked'), 'junction');
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'EPERM') {
+        testContext.skip('creating a symlink requires elevated privileges on this platform');
+        return;
+      }
+      throw error;
+    }
+
+    const h = harness(dir);
+
+    expect(resolveInFile(h, 'src/a.ts', 'linked')).toEqual({
+      class: 'external',
+      target: { module: 'linked' },
+    });
   });
 
   it('does not leak a real node_modules into a sibling project without one', () => {

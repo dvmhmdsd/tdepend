@@ -4,8 +4,15 @@ import type { EdgeKind, ImportBinding, ImportSite, ParsedFile } from './types';
 
 type DraftSite = Omit<ImportSite, 'line' | 'column'>;
 
-export function parseFile(file: string, text: string, options: ts.CompilerOptions): ParsedFile {
-  const sourceFile = createSourceFile(file, text, options);
+// `absolutePath` lets TypeScript find the nearest package.json for the implied
+// module format; a root-relative path would be read against the process cwd.
+export function parseFile(
+  file: string,
+  text: string,
+  options: ts.CompilerOptions,
+  absolutePath: string = file,
+): ParsedFile {
+  const sourceFile = createSourceFile(file, text, options, absolutePath);
   return {
     file,
     sourceFile,
@@ -14,13 +21,18 @@ export function parseFile(file: string, text: string, options: ts.CompilerOption
   };
 }
 
-function createSourceFile(file: string, text: string, options: ts.CompilerOptions): ts.SourceFile {
+function createSourceFile(
+  file: string,
+  text: string,
+  options: ts.CompilerOptions,
+  absolutePath: string,
+): ts.SourceFile {
   return ts.createSourceFile(
     file,
     text,
     {
       languageVersion: ts.ScriptTarget.Latest,
-      impliedNodeFormat: impliedNodeFormatFor(file, options),
+      impliedNodeFormat: impliedNodeFormatFor(absolutePath, options),
     },
     true,
     scriptKindFor(file),

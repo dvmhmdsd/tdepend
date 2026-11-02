@@ -31,6 +31,17 @@ describe('toSerializable', () => {
     expect(parsed.sites.some((site: { file: string }) => site.file === 'src/user.controller.ts')).toBe(
       true,
     );
+    expect(parsed.report.warnings).toEqual([]);
+  });
+
+  it('carries the resolution reason and discovery warnings', async () => {
+    const serializable = toSerializable(
+      await analyze({ root: join(FIXTURES, 'vite-tanstack-router-missing-gen') }),
+    );
+
+    const gen = serializable.sites.find((site) => site.specifier === './routeTree.gen');
+    expect(gen).toMatchObject({ class: 'ignored', reason: 'gitignored' });
+    expect(Array.isArray(serializable.report.warnings)).toBe(true);
   });
 
   it('keeps the export free of parser nodes', async () => {

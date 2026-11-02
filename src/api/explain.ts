@@ -1,7 +1,8 @@
 import { isAbsolute, relative } from 'node:path';
 
+import { ConfigError } from '../errors';
 import { toPosix } from '../fs';
-import type { EdgeKind } from '../parser/types';
+import type { EdgeKind, LoadReason } from '../parser/types';
 import type { ResolutionClass, Target } from '../resolver/types';
 import { analyze, type AnalyzeOptions } from './analyze';
 
@@ -11,6 +12,7 @@ export interface ExplainRow {
   column: number;
   kind: EdgeKind;
   loadsTarget: boolean;
+  loadsTargetBy: LoadReason | null;
   loadReason: string;
   class: ResolutionClass;
   target: Target | null;
@@ -26,6 +28,9 @@ export async function explainFile(
 ): Promise<ExplainRow[]> {
   const result = await analyze(options);
   const file = toRootRelative(result.ctx.rootDir, options.file);
+  if (!result.files.files.includes(file)) {
+    throw new ConfigError(`File is not in the analysis set: ${file}`);
+  }
 
   return result.sites
     .filter((record) => record.file === file)
@@ -35,6 +40,7 @@ export async function explainFile(
       column: record.site.column,
       kind: record.site.kind,
       loadsTarget: record.site.loadsTarget === true,
+      loadsTargetBy: record.site.loadsTargetBy ?? null,
       loadReason: record.site.loadReason ?? '',
       class: record.resolution.class,
       target: record.resolution.target,

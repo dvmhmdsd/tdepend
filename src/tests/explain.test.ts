@@ -16,7 +16,12 @@ describe('explainFile', () => {
     expect(rows).toHaveLength(10);
 
     const missing = rows.find((row) => row.specifier === './missing');
-    expect(missing).toMatchObject({ class: 'unresolved', loadsTarget: true, target: null });
+    expect(missing).toMatchObject({
+      class: 'unresolved',
+      loadsTarget: true,
+      loadsTargetBy: 'retained',
+      target: null,
+    });
     expect(missing?.loadReason.length).toBeGreaterThan(0);
 
     const builtin = rows.find((row) => row.specifier === 'node:fs');
@@ -39,5 +44,13 @@ describe('explainFile', () => {
     const rows = await explainFile({ root, file: join(root, 'src', 'user.repository.ts') });
 
     expect(rows).toEqual([]);
+  });
+
+  it('rejects a file outside the analysis set', async () => {
+    const root = join(FIXTURES, 'nest-cjs');
+
+    await expect(explainFile({ root, file: 'src/nope.ts' })).rejects.toThrow(
+      'not in the analysis set',
+    );
   });
 });

@@ -164,8 +164,9 @@ export function createWorkspaceHost(
     },
     getCurrentDirectory: () => ctx.rootDir,
     getDirectories: (path) => {
+      const real = redirectWorkspacePath(path, ctx);
       try {
-        return fs.readdir(redirectWorkspacePath(path, ctx));
+        return fs.readdir(real).filter((name) => isDir(fs, join(real, name)));
       } catch {
         return [];
       }

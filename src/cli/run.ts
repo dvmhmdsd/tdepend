@@ -123,9 +123,9 @@ function formatExplain(rows: ExplainRow[]): string {
 }
 
 function formatExplainRow(row: ExplainRow): string {
-  const verdict = row.loadsTarget ? `loads (${row.loadReason})` : `erased (${row.loadReason})`;
+  const verdict = `${row.loadsTarget ? 'loads' : 'erased'} (${row.loadsTargetBy ?? '-'}): ${row.loadReason}`;
   const target = formatTarget(row.target);
-  return `${row.line}:${row.column}  ${row.class}  ${verdict}  '${row.specifier}' -> ${target}`;
+  return `${row.line}:${row.column}  ${row.kind}  ${row.class}  '${row.specifier}' -> ${target}  ${verdict}`;
 }
 
 function formatTarget(target: Target | null): string {

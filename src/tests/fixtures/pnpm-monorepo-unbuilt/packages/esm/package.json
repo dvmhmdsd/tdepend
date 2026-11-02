@@ -1,0 +1,9 @@
+{
+  "name": "@demo/esm",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@demo/cond": "workspace:*"
+  }
+}
