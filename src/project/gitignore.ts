@@ -1,4 +1,4 @@
-import { isAbsolute, join, relative } from 'node:path';
+import { dirname, isAbsolute, join, relative } from 'node:path';
 
 import picomatch from 'picomatch';
 
@@ -16,6 +16,7 @@ export interface IgnoreMatcher {
 
 export interface CreateIgnoreMatcherOptions {
   rootDir: string;
+  gitTopLevel?: string | null;
   localExcludeBase: string;
   localExclude: string[];
   fs: FileSystemLike;
@@ -36,14 +37,19 @@ export function createIgnoreMatcher(opts: CreateIgnoreMatcherOptions): IgnoreMat
     if (rule !== null) rules.push(rule);
   }
 
-  const collect = (dir: string): void => {
+  const readRules = (dir: string): void => {
     const text = tryRead(opts.fs, join(dir, '.gitignore'));
-    if (text !== null) {
-      for (const line of text.split('\n')) {
-        const rule = compileRule(dir, line);
-        if (rule !== null) rules.push(rule);
-      }
+    if (text === null) return;
+    for (const line of text.split('\n')) {
+      const rule = compileRule(dir, line);
+      if (rule !== null) rules.push(rule);
     }
+  };
+
+  for (const dir of ancestorsBetween(opts.gitTopLevel ?? null, opts.rootDir)) readRules(dir);
+
+  const collect = (dir: string): void => {
+    readRules(dir);
 
     let entries: string[];
     try {
@@ -64,6 +70,16 @@ export function createIgnoreMatcher(opts: CreateIgnoreMatcherOptions): IgnoreMat
   collect(opts.rootDir);
 
   return { test: (absPath, isDirectory = false) => matches(rules, absPath, isDirectory) };
+}
+
+function ancestorsBetween(top: string | null, rootDir: string): string[] {
+  if (top === null || relativeToBase(top, rootDir) === null) return [];
+  const dirs: string[] = [];
+  for (let dir = dirname(rootDir); dir.length >= top.length; dir = dirname(dir)) {
+    dirs.unshift(dir);
+    if (dir === top || dirname(dir) === dir) break;
+  }
+  return dirs;
 }
 
 function matches(rules: IgnoreRule[], absPath: string, isDirectory: boolean): boolean {

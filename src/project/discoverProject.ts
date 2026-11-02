@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { basename, isAbsolute, join, relative } from 'node:path';
+import { basename, isAbsolute, join, relative, sep } from 'node:path';
 
 import picomatch from 'picomatch';
 import * as ts from 'typescript';
@@ -24,6 +24,8 @@ import type {
   WorkspacePackage,
 } from './types';
 
+const UNKNOWN_OPTION_CODES = new Set([5023, 5024, 5025]);
+
 const BUNDLER_DEPENDENCIES = ['vite', 'next', 'webpack', '@rsbuild/core', '@tanstack/react-start'];
 
 export function discoverProject(rootDir: string, opts: DiscoverOptions = {}): ProjectContext {
@@ -33,6 +35,7 @@ export function discoverProject(rootDir: string, opts: DiscoverOptions = {}): Pr
   const localExclude = opts.localExclude ?? readLocalExclude(fs, gitTopLevel);
   const ignore = createIgnoreMatcher({
     rootDir: root,
+    gitTopLevel,
     localExcludeBase: gitTopLevel ?? root,
     localExclude,
     fs,
@@ -60,8 +63,10 @@ export function discoverProject(rootDir: string, opts: DiscoverOptions = {}): Pr
 
   const packages = readWorkspacePackages(root, fs, packageSet, readPackage);
 
+  const isExcluded = opts.isExcluded ?? ((): boolean => false);
   const projectDirs = new Set<string>(['']);
   for (const rel of packagePaths) {
+    if (isExcluded(rel)) continue;
     const pkg = readPackage(rel);
     if (pkg !== null && declaresDependencies(pkg)) projectDirs.add(dirOfPosix(rel));
   }
@@ -107,7 +112,7 @@ export function discoverProject(rootDir: string, opts: DiscoverOptions = {}): Pr
   ): { options: ts.CompilerOptions; entry: TsconfigEntry | null } => {
     const rel = normalizeRel(root, file);
     const containing = tsconfigs.filter((entry) => entry.fileNames.has(rel));
-    const entry = pickNearest(containing) ?? pickNearestAncestor(tsconfigs, rel);
+    const entry = pickNearest(containing, rel) ?? pickNearestAncestor(tsconfigs, rel);
     if (entry === null) {
       const project = projectFor(rel);
       const fallback = fallbackOptions(project, rel, packageSet, readPackage);
@@ -186,6 +191,7 @@ function walk(
     const abs = join(dir, name);
     const stats = tryStat(fs, abs);
     if (stats === null) continue;
+    if (!isInsideRoot(fs, root, abs)) continue;
     const rel = relDir === '' ? name : `${relDir}/${name}`;
     if (stats.isDirectory()) {
       if (ignore.test(abs, true)) continue;
@@ -195,6 +201,11 @@ function walk(
       visit(abs, rel);
     }
   }
+}
+
+function isInsideRoot(fs: FileSystemLike, root: string, abs: string): boolean {
+  const real = realpathOrSelf(fs, abs);
+  return real === root || real.startsWith(root + sep);
 }
 
 function parseTsconfig(rel: string, root: string, warnings: string[]): TsconfigEntry {
@@ -226,7 +237,7 @@ function parseTsconfig(rel: string, root: string, warnings: string[]): TsconfigE
 
   let unknownOption = false;
   for (const diagnostic of parsed.errors) {
-    if (diagnostic.code === 5023 || diagnostic.code === 5024) {
+    if (UNKNOWN_OPTION_CODES.has(diagnostic.code)) {
       unknownOption = true;
       continue;
     }
@@ -267,7 +278,7 @@ function readWorkspacePackages(
   const globs = readWorkspaceGlobs(root, fs, rootPackage);
   if (globs.length === 0) return [];
 
-  const isPackageDir = picomatch(globs, { dot: true });
+  const isPackageDir = workspaceMatcher(globs);
   const dirs = [...packageSet]
     .map((rel) => dirOfPosix(rel))
     .filter((dir) => dir !== '' && isPackageDir(dir))
@@ -287,6 +298,17 @@ function readWorkspacePackages(
     seen.set(name, dir);
     return { id: `pkg:${dir}`, name, dir, packageJson: pkg as object };
   });
+}
+
+// picomatch treats a negated pattern in a list as "match anything but", which
+// would make `['packages/*', '!**/test/**']` match every directory. Positive and
+// negative patterns are matched separately instead.
+function workspaceMatcher(globs: string[]): (dir: string) => boolean {
+  const positive = globs.filter((glob) => !glob.startsWith('!'));
+  const negative = globs.filter((glob) => glob.startsWith('!')).map((glob) => glob.slice(1));
+  const matchesPositive = positive.length === 0 ? () => false : picomatch(positive, { dot: true });
+  const matchesNegative = negative.length === 0 ? () => false : picomatch(negative, { dot: true });
+  return (dir) => matchesPositive(dir) && !matchesNegative(dir);
 }
 
 function readWorkspaceGlobs(
@@ -327,13 +349,20 @@ function readWorkspaceGlobs(
 }
 
 function pickNearestAncestor(entries: TsconfigEntry[], rel: string): TsconfigEntry | null {
-  return pickNearest(entries.filter((entry) => isAncestorDir(dirOfPosix(entry.configPath), rel)));
+  return pickNearest(
+    entries.filter((entry) => isAncestorDir(dirOfPosix(entry.configPath), rel)),
+    rel,
+  );
 }
 
-function pickNearest(entries: TsconfigEntry[]): TsconfigEntry | null {
+function pickNearest(entries: TsconfigEntry[], rel: string): TsconfigEntry | null {
   if (entries.length === 0) return null;
   const sorted = [...entries].sort((a, b) => {
-    const byDepth = dirOfPosix(b.configPath).length - dirOfPosix(a.configPath).length;
+    const dirA = dirOfPosix(a.configPath);
+    const dirB = dirOfPosix(b.configPath);
+    const byAncestor = Number(isAncestorDir(dirB, rel)) - Number(isAncestorDir(dirA, rel));
+    if (byAncestor !== 0) return byAncestor;
+    const byDepth = depthOf(dirB) - depthOf(dirA);
     if (byDepth !== 0) return byDepth;
     const byPriority = configPriority(a.configPath) - configPriority(b.configPath);
     if (byPriority !== 0) return byPriority;
@@ -439,6 +468,10 @@ function normalizeRel(root: string, file: string): string {
 function isAncestorDir(dir: string, rel: string): boolean {
   if (dir === '') return true;
   return rel === dir || rel.startsWith(`${dir}/`);
+}
+
+function depthOf(dir: string): number {
+  return dir === '' ? 0 : dir.split('/').length;
 }
 
 function dirOfPosix(path: string): string {

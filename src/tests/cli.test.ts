@@ -76,6 +76,24 @@ describe('runCli', () => {
     expect(stdout.trim().split('\n')).toHaveLength(10);
   });
 
+  it('rejects an unknown --format value', async () => {
+    const code = await runCli(['analyze', '--root', fixture('nest-cjs'), '--format', 'yaml'], io());
+
+    expect(code).toBe(2);
+    expect(stdout).toBe('');
+  });
+
+  it('resolves --config against the working directory, not --root', async () => {
+    writeFileSync(join(dir, 'custom.json'), JSON.stringify({ typeOnly: 'syntax' }));
+
+    const code = await runCli(
+      ['analyze', '--root', fixture('nest-cjs'), '--config', 'custom.json', '--format', 'json'],
+      io(),
+    );
+
+    expect(code).toBe(0);
+  });
+
   it('rejects an unknown 0.2 command flag such as --class', async () => {
     const code = await runCli(['analyze', '--class', 'Foo'], io());
 
