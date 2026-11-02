@@ -9,6 +9,7 @@
   "tsc": true,
   "esbuild": false,
   "swc": true,
-  "conservative": false,
-  "loadsTarget": true
+  "conservative": true,
+  "loadsTarget": true,
+  "tscProgram": false
 }

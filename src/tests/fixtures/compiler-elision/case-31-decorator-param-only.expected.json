@@ -1,0 +1,15 @@
+{
+  "id": "case-31",
+  "slug": "decorator-param-only",
+  "file": "case-31-decorator-param-only.ts",
+  "options": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  },
+  "tsc": true,
+  "esbuild": false,
+  "swc": true,
+  "conservative": true,
+  "loadsTarget": true,
+  "tscProgram": false
+}

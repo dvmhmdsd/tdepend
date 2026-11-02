@@ -12,7 +12,7 @@ export interface FileSystemLike {
 
 export function nodeFileSystem(): FileSystemLike {
   return {
-    readFile: (path) => readFileSync(path, 'utf-8'),
+    readFile: (path) => stripBom(readFileSync(path, 'utf-8')),
     readdir: (path) => readdirSync(path),
     stat: (path) => {
       const stats = statSync(path);
@@ -20,6 +20,12 @@ export function nodeFileSystem(): FileSystemLike {
     },
     realpath: (path) => realpathSync.native(path),
   };
+}
+
+// `ts.sys.readFile` drops a byte-order mark too; keeping it would shift every
+// column on the first line by one.
+function stripBom(text: string): string {
+  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
 }
 
 export function toPosix(path: string): string {
