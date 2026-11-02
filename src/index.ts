@@ -15,6 +15,9 @@ export { exportToFile } from './api/export';
 
 export { toSerializable } from './api/serialization';
 
+export type { EdgeKind, LoadReason } from './parser/types';
+export type { ResolutionClass } from './resolver/types';
+
 export type {
   AnalysisResult,
   SerializableEdge,

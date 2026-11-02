@@ -92,7 +92,12 @@ export function buildFileGraph(
 
   for (const file of files.files) {
     const { options: compilerOptions } = ctx.optionsFor(file);
-    const parsedFile = parseFile(file, readSourceFile(fs, ctx.rootDir, file), compilerOptions);
+    const parsedFile = parseFile(
+      file,
+      readSourceFile(fs, ctx.rootDir, file),
+      compilerOptions,
+      join(ctx.rootDir, file),
+    );
     parsed.set(file, parsedFile);
 
     const environment: SiteEnvironment = {

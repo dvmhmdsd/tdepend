@@ -1,3 +1,4 @@
+import { discoveryWarnings } from '../api/serialization';
 import type { AnalysisResult } from '../types/api';
 
 const MAX_UNRESOLVED = 20;
@@ -11,14 +12,17 @@ const MAX_IGNORED_DIRS = 10;
 export function formatAnalyzeText(result: AnalysisResult): string {
   const sections = [
     summaryLines(result),
+    classLines(result),
     unresolvedLines(result),
     ignoredLines(result),
+    unsupportedLines(result),
     [
-      `Unsupported imports: ${result.report.unsupported.length}`,
       `Self-imports: ${result.report.selfImports.length}`,
       `Files outside every tsconfig: ${result.files.uncovered.length}`,
     ],
-  ];
+    notInstalledLines(result),
+    warningLines(result),
+  ].filter((lines) => lines.length > 0);
 
   return `${sections.map((lines) => lines.join('\n')).join('\n\n')}\n`;
 }
@@ -29,6 +33,41 @@ function summaryLines(result: AnalysisResult): string[] {
     `Import sites: ${result.sites.length}`,
     `Edges: ${result.graph.edges().length}`,
   ];
+}
+
+function classLines(result: AnalysisResult): string[] {
+  const lines = ['Sites by class:'];
+  for (const [name, count] of Object.entries(result.report.stats)) {
+    lines.push(`  ${name}: ${count}`);
+  }
+  return lines;
+}
+
+function unsupportedLines(result: AnalysisResult): string[] {
+  const byReason = new Map<string, number>();
+  for (const record of result.report.unsupported) {
+    const reason = record.resolution.reason ?? 'unknown';
+    byReason.set(reason, (byReason.get(reason) ?? 0) + 1);
+  }
+  const lines = [`Unsupported imports: ${result.report.unsupported.length}`];
+  for (const [reason, count] of [...byReason.entries()].sort()) {
+    lines.push(`  ${reason}: ${count}`);
+  }
+  return lines;
+}
+
+function notInstalledLines(result: AnalysisResult): string[] {
+  const count = result.sites.filter(
+    (record) => record.resolution.class === 'external' && record.resolution.reason === 'not-installed',
+  ).length;
+  if (count === 0) return [];
+  return [`Declared packages not found: ${count} (is node_modules installed?)`];
+}
+
+function warningLines(result: AnalysisResult): string[] {
+  const warnings = discoveryWarnings(result);
+  if (warnings.length === 0) return [];
+  return ['Warnings:', ...warnings.map((warning) => `  ${warning}`)];
 }
 
 function unresolvedLines(result: AnalysisResult): string[] {

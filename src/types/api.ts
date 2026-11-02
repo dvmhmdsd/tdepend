@@ -33,6 +33,7 @@ export interface SerializableSite {
   loadsTarget: boolean;
   loadsTargetBy: LoadReason | null;
   class: ResolutionClass;
+  reason: string | null;
   target: Target | null;
   mapped: string | null;
   requested: WorkspaceRequest | null;
@@ -68,6 +69,7 @@ export interface SerializableReport {
   selfImports: string[];
   uncovered: string[];
   skipped: Array<{ file: string; reason: SkipReason }>;
+  warnings: string[];
 }
 
 /**

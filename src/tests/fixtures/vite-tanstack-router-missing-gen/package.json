@@ -1,0 +1,10 @@
+{
+  "name": "vite-tanstack-router-missing-gen",
+  "private": true,
+  "dependencies": {
+    "@tanstack/react-router": "^1.0.0"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0"
+  }
+}

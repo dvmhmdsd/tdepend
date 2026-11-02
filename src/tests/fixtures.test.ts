@@ -27,6 +27,7 @@ const REPO_FIXTURES = [
   'pnpm-settings-only',
   'tanstack-start',
   'vite-tanstack-router',
+  'vite-tanstack-router-missing-gen',
 ];
 
 const tempDirs: string[] = [];
@@ -211,7 +212,9 @@ describe('file graph structure', () => {
       .find((candidate) => candidate.from === 'scripts/seed.ts' && candidate.to === 'scripts/util.ts');
     expect(edge).toBeDefined();
 
-    const record = result.sites.find((candidate) => candidate.file === 'scripts/seed.ts');
+    const record = result.sites.find(
+      (candidate) => candidate.file === 'scripts/seed.ts' && candidate.site.specifier === './util',
+    );
     expect(record?.resolution.class).toBe('internal');
   });
 });

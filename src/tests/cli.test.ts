@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -74,6 +74,33 @@ describe('runCli', () => {
 
     expect(code).toBe(0);
     expect(stdout.trim().split('\n')).toHaveLength(10);
+    expect(stdout).toContain("side-effect  internal  './features/cart' -> src/features/cart/index.ts");
+    expect(stdout).toContain('loads (retained):');
+  });
+
+  it('explain on a file outside the analysis set returns 2', async () => {
+    const code = await runCli(['explain', 'src/nope.ts', '--root', fixture('nest-cjs')], io());
+
+    expect(code).toBe(2);
+    expect(stderr).toContain('not in the analysis set');
+  });
+
+  it('analyze text lists sites by class, missing packages and discovery warnings', async () => {
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ dependencies: { react: '19' } }));
+    writeFileSync(
+      join(dir, 'tsconfig.json'),
+      JSON.stringify({ compilerOptions: { experimentalFoo: true }, include: ['src'] }),
+    );
+    mkdirSync(join(dir, 'src'));
+    writeFileSync(join(dir, 'src', 'a.ts'), "import react from 'react';\nexport const r = react;\n");
+
+    const code = await runCli(['analyze', '--root', dir], io());
+
+    expect(code).toBe(0);
+    expect(stdout).toContain('Sites by class:');
+    expect(stdout).toContain('  external: 1');
+    expect(stdout).toContain('Declared packages not found: 1');
+    expect(stdout).toContain('Warnings:\n  unknown-compiler-option: tsconfig.json');
   });
 
   it('rejects an unknown --format value', async () => {

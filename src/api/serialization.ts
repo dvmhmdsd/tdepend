@@ -39,6 +39,7 @@ function serializeSite(record: SiteRecord): SerializableSite {
     loadsTarget: site.loadsTarget === true,
     loadsTargetBy: site.loadsTargetBy ?? null,
     class: resolution.class,
+    reason: resolution.reason ?? null,
     target: resolution.target,
     mapped: resolution.mapped?.from ?? null,
     requested: resolution.requested ?? null,
@@ -64,7 +65,12 @@ function serializeReport(result: AnalysisResult): SerializableReport {
     selfImports: [...result.report.selfImports],
     uncovered: [...result.report.uncovered],
     skipped: result.report.skipped.map((entry) => ({ file: entry.file, reason: entry.reason })),
+    warnings: discoveryWarnings(result),
   };
+}
+
+export function discoveryWarnings(result: AnalysisResult): string[] {
+  return [...result.ctx.warnings, ...result.ctx.unsupported.map((name) => `unsupported: ${name}`)];
 }
 
 function siteLocation(record: SiteRecord): SerializableSiteLocation {

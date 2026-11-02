@@ -18,6 +18,10 @@
     "./browser": {
       "browser": "./dist/browser.d.ts",
       "default": "./dist/index.d.ts"
+    },
+    "./default-null-node": {
+      "default": null,
+      "node": "./dist/node.d.ts"
     }
   }
 }
