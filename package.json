@@ -26,7 +26,6 @@
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "pnpm run clean && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
-    "dev": "ts-node src/cli/index.ts analyze --help",
     "cli": "node dist/cli/index.js",
     "test": "vitest run",
     "format": "prettier --write .",
@@ -64,7 +63,6 @@
   },
   "dependencies": {
     "commander": "^15.0.0",
-    "glob": "^13.0.0",
     "picomatch": "^4.0.0",
     "typescript": "5.9.3",
     "yaml": "^2.0.0",
@@ -72,13 +70,11 @@
   },
   "devDependencies": {
     "@swc/core": "1.16.20",
-    "@types/glob": "^9.0.0",
     "@types/node": "^22.0.0",
     "@types/picomatch": "^4.0.0",
     "@vitest/coverage-v8": "^5.0.0",
     "esbuild": "0.28.2",
     "prettier": "^3.1.1",
-    "ts-node": "^10.9.2",
     "vitest": "^5.0.0"
   }
 }
