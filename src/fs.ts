@@ -22,8 +22,6 @@ export function nodeFileSystem(): FileSystemLike {
   };
 }
 
-// `ts.sys.readFile` drops a byte-order mark too; keeping it would shift every
-// column on the first line by one.
 function stripBom(text: string): string {
   return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
 }

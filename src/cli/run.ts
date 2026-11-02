@@ -1,6 +1,6 @@
 import { resolve as resolvePath } from 'node:path';
 
-import { Command, CommanderError } from 'commander';
+import { Command, CommanderError, Option } from 'commander';
 
 import { analyze } from '../api/analyze';
 import { exportToFile } from '../api/export';
@@ -74,17 +74,21 @@ function buildProgram(io: CliIo, setExitCode: (code: ExitCode) => void): Command
 
   const rootFor = (options: CommonOptions): string =>
     options.root === undefined ? io.cwd : resolvePath(io.cwd, options.root);
+  const configFor = (options: CommonOptions): string | undefined =>
+    options.config === undefined ? undefined : resolvePath(io.cwd, options.config);
 
   program
     .command('analyze')
     .description('Analyze a TypeScript project and report its import graph')
     .option('-r, --root <dir>', 'analysis root, defaults to the working directory')
     .option('-c, --config <path>', 'path to the tdepend config file')
-    .option('-f, --format <format>', 'output format: text or json', 'text')
+    .addOption(
+      new Option('-f, --format <format>', 'output format').choices(['text', 'json']).default('text'),
+    )
     .option('-e, --export <path>', 'write the full result to a JSON file')
     .option('--strict-resolution', 'exit 2 when any import is unresolved')
     .action(async (options: AnalyzeCliOptions) => {
-      const result = await analyze({ root: rootFor(options), config: options.config });
+      const result = await analyze({ root: rootFor(options), config: configFor(options) });
 
       if (options.export !== undefined) {
         await exportToFile(result, resolvePath(io.cwd, options.export));
@@ -106,7 +110,7 @@ function buildProgram(io: CliIo, setExitCode: (code: ExitCode) => void): Command
     .option('-r, --root <dir>', 'analysis root, defaults to the working directory')
     .option('-c, --config <path>', 'path to the tdepend config file')
     .action(async (file: string, options: CommonOptions) => {
-      const rows = await explainFile({ root: rootFor(options), config: options.config, file });
+      const rows = await explainFile({ root: rootFor(options), config: configFor(options), file });
       io.stdout(formatExplain(rows));
     });
 

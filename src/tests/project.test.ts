@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -55,6 +55,18 @@ describe('discoverProject workspace packages', () => {
     expect(ctx.packages).toEqual([]);
   });
 
+  it('a negated workspace glob removes matches instead of matching everything', () => {
+    const dir = tempProject({
+      'package.json': JSON.stringify({ name: 'neg', private: true }),
+      'pnpm-workspace.yaml': "packages:\n  - 'packages/*'\n  - '!packages/skip'\n",
+      'packages/a/package.json': JSON.stringify({ name: '@neg/a' }),
+      'packages/skip/package.json': JSON.stringify({ name: '@neg/skip' }),
+      'apps/web/package.json': JSON.stringify({ name: '@neg/web' }),
+    });
+
+    expect(discoverProject(dir).packages.map((p) => p.name)).toEqual(['@neg/a']);
+  });
+
   it('duplicate workspace names are a ConfigError', () => {
     const dir = tempProject({
       'package.json': JSON.stringify({ name: 'dup', private: true }),
@@ -94,6 +106,36 @@ describe('discoverProject projects', () => {
     expect(root.dependencies.has('next')).toBe(false);
     expect(root.dependencies.has('typescript')).toBe(true);
   });
+
+  it('a package.json in an excluded directory is not a project', () => {
+    const dir = tempProject({
+      'package.json': JSON.stringify({ name: 'root', private: true }),
+      'e2e/package.json': JSON.stringify({ name: 'e2e', dependencies: { playwright: '1' } }),
+      'src/index.ts': 'export {};',
+    });
+
+    const ctx = discoverProject(dir, { isExcluded: (rel) => rel.startsWith('e2e/') });
+
+    expect(ctx.projects.map((p) => p.id)).toEqual(['proj:(repo)']);
+  });
+
+  it('does not follow a symlink that points outside the root', () => {
+    const outside = tempProject({
+      'package.json': JSON.stringify({ name: 'outside', dependencies: { x: '1' } }),
+      'tsconfig.json': JSON.stringify({ include: ['.'] }),
+      'a.ts': 'export {};',
+    });
+    const dir = tempProject({
+      'package.json': JSON.stringify({ name: 'inside', private: true }),
+      'src/index.ts': 'export {};',
+    });
+    symlinkSync(outside, join(dir, 'linked'), 'dir');
+
+    const ctx = discoverProject(dir);
+
+    expect(ctx.projects.map((p) => p.id)).toEqual(['proj:(repo)']);
+    expect(ctx.tsconfigs).toEqual([]);
+  });
 });
 
 describe('discoverProject tsconfigs', () => {
@@ -111,6 +153,17 @@ describe('discoverProject tsconfigs', () => {
 
     expect(ctx.optionsFor('src/a.ts').entry?.configPath).toBe('tsconfig.json');
     expect(ctx.optionsFor('tools/cli/src/b.ts').entry?.configPath).toBe('tools/cli/tsconfig.json');
+  });
+
+  it('prefers a config in an ancestor directory over one that lists the file from elsewhere', () => {
+    const dir = tempProject({
+      'package.json': JSON.stringify({ name: 'near', private: true }),
+      'tsconfig.json': JSON.stringify({ include: ['src'] }),
+      'tools/tsconfig.json': JSON.stringify({ include: ['../src'] }),
+      'src/x.ts': 'export {};',
+    });
+
+    expect(discoverProject(dir).optionsFor('src/x.ts').entry?.configPath).toBe('tsconfig.json');
   });
 
   it('a references-only root config with no inputs is not an error', () => {
@@ -181,6 +234,20 @@ describe('discoverProject config diagnostics', () => {
     expect(ctx.tsconfigs.length).toBe(1);
   });
 
+  it('an unknown option with a suggestion (5025) is a warning too', () => {
+    const dir = tempProject({
+      'tsconfig.json': JSON.stringify({
+        compilerOptions: { moduleResolutoin: 'node' },
+        include: ['src'],
+      }),
+      'src/index.ts': 'export {};',
+    });
+
+    const ctx = discoverProject(dir);
+
+    expect(ctx.warnings).toEqual(['unknown-compiler-option: tsconfig.json']);
+  });
+
   it('a config with no inputs (18003) is ignored', () => {
     const dir = tempProject({
       'tsconfig.json': JSON.stringify({ include: ['nothing-here'] }),
@@ -213,6 +280,21 @@ describe('discoverProject isIgnored', () => {
     expect(ctx.isIgnored('sub/nested.txt')).toBe(true);
     expect(ctx.isIgnored('excluded-by-info.txt')).toBe(true);
     expect(ctx.isIgnored('global.txt')).toBe(false);
+    expect(ctx.isIgnored('src/ok.ts')).toBe(false);
+  });
+
+  it('reads the .gitignore files above a root that sits inside the repository', () => {
+    const top = mkdtempSync(join(tmpdir(), 'tdepend-ignore-top-'));
+    tempDirs.push(top);
+    execFileSync('git', ['init', '-q'], { cwd: top });
+    writeFileSync(join(top, '.gitignore'), '*.log\n');
+    mkdirSync(join(top, 'apps', 'web', 'src'), { recursive: true });
+    writeFileSync(join(top, 'apps', '.gitignore'), 'generated/\n');
+
+    const ctx = discoverProject(join(top, 'apps', 'web'));
+
+    expect(ctx.isIgnored('src/debug.log')).toBe(true);
+    expect(ctx.isIgnored('src/generated/x.ts')).toBe(true);
     expect(ctx.isIgnored('src/ok.ts')).toBe(false);
   });
 });

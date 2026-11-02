@@ -48,6 +48,25 @@ describe('loadConfig', () => {
     }
   });
 
+  it('rejects a 0.2 config with the migration message', () => {
+    writeConfig({ rootDir: 'src', ci: {} });
+
+    expect(() => loadConfig({ cwd: dir })).toThrow(
+      "This looks like a tdepend 0.2 config. See 'Migrating from 0.2' in the README.",
+    );
+  });
+
+  it('rejects keys whose feature has not shipped yet', () => {
+    writeConfig({ rules: [], baseline: 'b.json', metrics: { thresholds: { distance: 0.5 } } });
+
+    expect(() => loadConfig({ cwd: dir })).toThrow(
+      'not available in this version: rules, baseline, metrics.thresholds',
+    );
+
+    writeConfig({ metrics: { abstractness: 'jdepend' } });
+    expect(loadConfig({ cwd: dir }).config.metrics.abstractness).toBe('jdepend');
+  });
+
   it('accepts an exclude entry starting with !', () => {
     writeConfig({ exclude: ['!**/public/**'] });
 

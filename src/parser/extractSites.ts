@@ -170,8 +170,6 @@ function extractSites(sourceFile: ts.SourceFile): ImportSite[] {
     add(draft, argument);
   };
 
-  // `@import { T } from './x'` is the tag form of a JSDoc import type and is
-  // recorded the same way.
   const addJsDocImportTag = (tag: ts.JSDocImportTag): void => {
     const specifier = tag.moduleSpecifier;
     if (!ts.isStringLiteral(specifier)) return;

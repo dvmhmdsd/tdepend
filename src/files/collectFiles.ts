@@ -46,7 +46,7 @@ const DECLARATION_FILE = /\.d\.(?:ts|mts|cts)$/;
 
 export function collectFiles(ctx: ProjectContext, opts: CollectOptions): CollectResult {
   const fs = opts.fs ?? nodeFileSystem();
-  const isExcluded = buildExcludeMatcher([...opts.presetSkips, ...opts.exclude]);
+  const isExcluded = createExcludeMatcher(opts.presetSkips, opts.exclude);
   const matchesInclude = opts.include.length === 0 ? null : picomatch(opts.include, { dot: true });
 
   const { candidates, skipped: walkSkipped } = discoverCandidates(fs, ctx, matchesInclude);
@@ -193,10 +193,13 @@ function visitFile(ctx: WalkContext, entry: WalkEntry): void {
   ctx.handlers.onFile(entry.rel, entry.abs);
 }
 
-function buildExcludeMatcher(patterns: string[]): (rel: string) => boolean {
+export function createExcludeMatcher(
+  presetSkips: string[],
+  exclude: string[],
+): (rel: string) => boolean {
   const effective: string[] = [];
 
-  for (const pattern of patterns) {
+  for (const pattern of [...presetSkips, ...exclude]) {
     if (pattern === '') continue;
     if (pattern.startsWith('!')) {
       const index = effective.indexOf(pattern.slice(1));

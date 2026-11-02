@@ -42,4 +42,5 @@ export interface ProjectContext {
 export interface DiscoverOptions {
   fs?: FileSystemLike;
   localExclude?: string[];
+  isExcluded?: (rel: string) => boolean;
 }

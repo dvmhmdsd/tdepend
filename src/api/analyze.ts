@@ -1,7 +1,7 @@
 import { resolve as resolvePath } from 'node:path';
 
 import { loadConfig } from '../config/loadConfig';
-import { DEFAULT_SKIPS, collectFiles } from '../files/collectFiles';
+import { DEFAULT_SKIPS, collectFiles, createExcludeMatcher } from '../files/collectFiles';
 import { buildFileGraph } from '../graph/buildFileGraph';
 import { discoverProject } from '../project/discoverProject';
 import { createResolver } from '../resolver/createResolver';
@@ -26,7 +26,9 @@ export async function analyze(options: AnalyzeOptions = {}): Promise<AnalysisRes
   const { config } = loadConfig({ cwd: baseDir, configPath: options.config });
   const rootDir = config.root === '.' ? baseDir : resolvePath(baseDir, config.root);
 
-  const ctx = discoverProject(rootDir);
+  const ctx = discoverProject(rootDir, {
+    isExcluded: createExcludeMatcher(DEFAULT_SKIPS, config.exclude),
+  });
   const files = collectFiles(ctx, {
     include: config.include,
     exclude: config.exclude,
