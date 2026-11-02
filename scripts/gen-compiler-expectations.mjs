@@ -79,6 +79,8 @@ const CASES = [
     slug: 'decorator-metadata',
     ext: 'ts',
     options: { experimentalDecorators: true, emitDecoratorMetadata: true },
+    program: true,
+    conservative: true,
   },
   {
     id: 'case-29',
@@ -87,6 +89,29 @@ const CASES = [
     options: { experimentalDecorators: true },
   },
   { id: 'case-30', slug: 'resolution-mode', ext: 'mts', options: { module: 'nodenext' } },
+  {
+    id: 'case-31',
+    slug: 'decorator-param-only',
+    ext: 'ts',
+    options: { experimentalDecorators: true, emitDecoratorMetadata: true },
+    program: true,
+    conservative: true,
+  },
+  {
+    id: 'case-32',
+    slug: 'decorator-generic-arg',
+    ext: 'ts',
+    options: { experimentalDecorators: true, emitDecoratorMetadata: true },
+  },
+  { id: 'case-33', slug: 'instantiation-expression', ext: 'ts' },
+  {
+    id: 'case-34',
+    slug: 'decorator-ctor-param-only',
+    ext: 'ts',
+    options: { experimentalDecorators: true, emitDecoratorMetadata: true },
+    program: true,
+    conservative: true,
+  },
 ];
 
 function fileNameOf(entry) {

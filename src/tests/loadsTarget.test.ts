@@ -143,11 +143,14 @@ describe('classifyLoads rules', () => {
     expect(classify('shadowed-name').loadsTarget).toBe(true);
   });
 
-  it('compilers: ["tsc"] erases an unmarked re-export and an empty import; the default keeps both', () => {
-    expect(classify('unmarked-reexport').loadsTarget).toBe(true);
-    expect(classify('unmarked-reexport', { compilers: ['tsc'] }).loadsTarget).toBe(false);
+  it('compilers: ["tsc"] erases an empty import but keeps an unmarked re-export', () => {
     expect(classify('empty-import').loadsTarget).toBe(true);
     expect(classify('empty-import', { compilers: ['tsc'] }).loadsTarget).toBe(false);
+    // The parser cannot tell `export { T } from` of a type from one of a value,
+    // and tsc keeps the value form, so the site stays loading until the symbol
+    // index exists (0.4.0).
+    expect(classify('unmarked-reexport').loadsTarget).toBe(true);
+    expect(classify('unmarked-reexport', { compilers: ['tsc'] }).loadsTarget).toBe(true);
   });
 
   it('erases an unused import by usage and loads a used-as-value import', () => {
@@ -165,6 +168,29 @@ describe('classifyLoads rules', () => {
   it('a decorated constructor parameter type loads under emitDecoratorMetadata; without it, erased', () => {
     expect(classify('decorator-metadata').loadsTarget).toBe(true);
     expect(classify('no-decorator-metadata').loadsTarget).toBe(false);
+  });
+
+  it('decorator metadata on an interface is conservative and still loads under compilers: ["tsc"]', () => {
+    const entry = entryFor('decorator-metadata');
+    expect(entry.conservative).toBe(true);
+    expect(entry.tscProgram).toBe(false);
+    expect(classify('decorator-metadata', { compilers: ['tsc'] }).loadsTarget).toBe(true);
+  });
+
+  it('a parameter decorator alone emits metadata for the method or constructor', () => {
+    for (const slug of ['decorator-param-only', 'decorator-ctor-param-only']) {
+      expect(entryFor(slug).tsc).toBe(true);
+      expect(classify(slug).loadsTarget).toBe(true);
+    }
+  });
+
+  it('metadata records only the leftmost type name, so a generic argument is erased', () => {
+    expect(entryFor('decorator-generic-arg').tsc).toBe(false);
+    expect(classify('decorator-generic-arg').loadsTarget).toBe(false);
+  });
+
+  it('an instantiation expression is a value use', () => {
+    expect(classify('instantiation-expression').loadsTarget).toBe(true);
   });
 
   it('retains an unmarked export { T } from and erases export type { T } from', () => {

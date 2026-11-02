@@ -1,0 +1,14 @@
+{
+  "id": "case-32",
+  "slug": "decorator-generic-arg",
+  "file": "case-32-decorator-generic-arg.ts",
+  "options": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  },
+  "tsc": false,
+  "esbuild": false,
+  "swc": false,
+  "conservative": false,
+  "loadsTarget": false
+}

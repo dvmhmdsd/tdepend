@@ -77,13 +77,10 @@ function classifyReExport(
     return retained('an empty re-export is kept by esbuild and swc, and by native ESM');
   }
 
-  if (keepsVerbatim(options) || compilers.includes('esbuild') || compilers.includes('swc')) {
-    return retained('an unmarked named re-export is kept by esbuild and swc');
-  }
-  return erased(
-    'syntax',
-    'only tsc is declared, and a full tsc program erases an unmarked named re-export',
-  );
+  // esbuild and swc keep every unmarked re-export; tsc keeps it whenever any
+  // name is a value. Without the symbol index the parser cannot tell a type from
+  // a value, so the site stays loading under every `compilers` setting.
+  return retained('an unmarked named re-export is kept until every name is known to be a type');
 }
 
 function classifyStatic(
@@ -211,6 +208,15 @@ function collectFileFacts(sourceFile: ts.SourceFile, options: ts.CompilerOptions
       return;
     }
 
+    // `makeBox<string>` without a call is an instantiation expression: a value
+    // reference that TypeScript parses as an expression-with-type-arguments node
+    // (a type-node kind). Heritage clauses, its only type-position home, were
+    // handled above, so here it is always an expression.
+    if (ts.isExpressionWithTypeArguments(node)) {
+      if (!inType) visit(node.expression, false);
+      return;
+    }
+
     if (inType || ts.isTypeNode(node)) return;
 
     if (ts.isIdentifier(node) && isReference(node)) record(node.text);
@@ -219,7 +225,9 @@ function collectFileFacts(sourceFile: ts.SourceFile, options: ts.CompilerOptions
     }
     if (metadataOn) recordDeclaredTypes(node, record);
 
-    node.forEachChild((child) => visit(child, ts.isTypeNode(child)));
+    node.forEachChild((child) =>
+      visit(child, ts.isTypeNode(child) && !ts.isExpressionWithTypeArguments(child)),
+    );
   };
 
   visit(sourceFile, false);
@@ -249,39 +257,60 @@ function visitHeritageClause(
   }
 }
 
+// Decorator metadata serialises the types a decorated member declares. tsc and
+// swc emit it for a decorated class, member or parameter, and they serialise
+// only the leftmost name of a type reference (`Promise<Dto>` becomes `Promise`,
+// `Dto[]` becomes `Array`), so only that name counts as a value use.
 function recordDeclaredTypes(node: ts.Node, record: (name: string) => void): void {
-  if (!hasDecorator(node)) return;
-
   if (
     ts.isMethodDeclaration(node) ||
     ts.isGetAccessorDeclaration(node) ||
     ts.isSetAccessorDeclaration(node)
   ) {
-    for (const parameter of node.parameters) {
-      if (parameter.type !== undefined) recordTypeIdentifiers(parameter.type, record);
-    }
-    if (node.type !== undefined) recordTypeIdentifiers(node.type, record);
+    if (!hasDecorator(node) && !node.parameters.some(hasDecorator)) return;
+    for (const parameter of node.parameters) recordMetadataType(parameter.type, record);
+    recordMetadataType(node.type, record);
     return;
   }
 
-  if (ts.isPropertyDeclaration(node) && node.type !== undefined) {
-    recordTypeIdentifiers(node.type, record);
+  if (ts.isPropertyDeclaration(node)) {
+    if (hasDecorator(node)) recordMetadataType(node.type, record);
     return;
   }
 
   if (ts.isClassDeclaration(node) || ts.isClassExpression(node)) {
-    for (const member of node.members) {
-      if (!ts.isConstructorDeclaration(member)) continue;
-      for (const parameter of member.parameters) {
-        if (parameter.type !== undefined) recordTypeIdentifiers(parameter.type, record);
-      }
-    }
+    const constructors = node.members.filter(ts.isConstructorDeclaration);
+    const parameters = constructors.flatMap((constructor) => [...constructor.parameters]);
+    if (!hasDecorator(node) && !parameters.some(hasDecorator)) return;
+    for (const parameter of parameters) recordMetadataType(parameter.type, record);
   }
 }
 
-function recordTypeIdentifiers(node: ts.Node, record: (name: string) => void): void {
-  if (ts.isIdentifier(node)) record(node.text);
-  node.forEachChild((child) => recordTypeIdentifiers(child, record));
+function recordMetadataType(
+  type: ts.TypeNode | undefined,
+  record: (name: string) => void,
+): void {
+  if (type === undefined) return;
+  if (ts.isTypeReferenceNode(type)) {
+    record(leftmostName(type.typeName));
+    return;
+  }
+  if (ts.isParenthesizedTypeNode(type) || ts.isTypeOperatorNode(type)) {
+    recordMetadataType(type.type, record);
+    return;
+  }
+  if (ts.isUnionTypeNode(type) || ts.isIntersectionTypeNode(type)) {
+    for (const member of type.types) recordMetadataType(member, record);
+    return;
+  }
+  if (ts.isConditionalTypeNode(type)) {
+    recordMetadataType(type.trueType, record);
+    recordMetadataType(type.falseType, record);
+  }
+}
+
+function leftmostName(name: ts.EntityName): string {
+  return ts.isIdentifier(name) ? name.text : leftmostName(name.left);
 }
 
 function hasDecorator(node: ts.Node): boolean {

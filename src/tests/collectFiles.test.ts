@@ -6,6 +6,8 @@ import { join } from 'node:path';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { collectFiles, DEFAULT_SKIPS, type CollectResult } from '../files/collectFiles';
+import { nodeFileSystem } from '../fs';
+import { parseFile } from '../parser/extractSites';
 import { discoverProject } from '../project/discoverProject';
 
 const FIXTURES = join(process.cwd(), 'src', 'tests', 'fixtures');
@@ -166,5 +168,18 @@ describe('collectFiles symlinks', () => {
     expect(
       result.skipped.some((entry) => entry.file === 'linked' && entry.reason === 'outside-root'),
     ).toBe(true);
+  });
+});
+
+describe('nodeFileSystem', () => {
+  it('strips a byte-order mark so first-line columns match TypeScript', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'tdepend-bom-'));
+    tempDirs.push(dir);
+    writeFileSync(join(dir, 'a.ts'), `\uFEFFimport { a } from './a';\n`);
+
+    const text = nodeFileSystem().readFile(join(dir, 'a.ts'));
+
+    expect(text.charCodeAt(0)).not.toBe(0xfeff);
+    expect(parseFile('a.ts', text, {}).sites[0].column).toBe(19);
   });
 });

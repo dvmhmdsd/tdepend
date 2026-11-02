@@ -1,0 +1,11 @@
+{
+  "id": "case-33",
+  "slug": "instantiation-expression",
+  "file": "case-33-instantiation-expression.ts",
+  "options": {},
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true
+}

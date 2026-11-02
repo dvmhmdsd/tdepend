@@ -135,6 +135,15 @@ describe('parseFile import sites', () => {
     expect(site.unsupported).toBe('jsdoc-import-type');
   });
 
+  it('flags a JSDoc @import tag the same way', () => {
+    const site = only(`/** @import { T } from './x' */\nexport const y = 1;\n`, 'src/a.js');
+
+    expect(site.kind).toBe('type');
+    expect(site.form).toBe('type-context');
+    expect(site.specifier).toBe('./x');
+    expect(site.unsupported).toBe('jsdoc-import-type');
+  });
+
   it('collects the directive prologue only from the leading statements', () => {
     const prologue = parseFile(
       'src/a.ts',

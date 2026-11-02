@@ -32,3 +32,7 @@ export const enum Status {
 export default function React(): void {
   /* stands in for the classic JSX factory */
 }
+
+export function box<T>(value: T): T {
+  return value;
+}
