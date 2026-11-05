@@ -301,26 +301,27 @@ function isLiteralSpecifier(
   return ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node);
 }
 
+// Code that runs in place, such as an immediately invoked function or a static
+// initialiser, delays nothing itself, so the walk goes on to whatever encloses it.
 function isDeferred(call: ts.CallExpression): boolean {
   let child: ts.Node = call;
-  let parent = child.parent;
 
-  while (parent !== undefined) {
-    if (ts.isFunctionLike(parent)) return !isImmediatelyInvoked(parent);
-    if (ts.isClassStaticBlockDeclaration(parent)) return false;
-    if (
-      ts.isPropertyDeclaration(parent) &&
-      parent.initializer !== undefined &&
-      containsNode(parent.initializer, child)
-    ) {
-      return !isStaticModifier(parent);
-    }
-    if (ts.isSourceFile(parent)) return false;
+  for (let parent = child.parent; parent !== undefined; parent = parent.parent) {
+    if (ts.isFunctionLike(parent) && !isImmediatelyInvoked(parent)) return true;
+    if (isInstanceInitializer(parent, child)) return true;
     child = parent;
-    parent = parent.parent;
   }
 
   return false;
+}
+
+function isInstanceInitializer(node: ts.Node, child: ts.Node): boolean {
+  return (
+    ts.isPropertyDeclaration(node) &&
+    node.initializer !== undefined &&
+    containsNode(node.initializer, child) &&
+    !isStaticModifier(node)
+  );
 }
 
 function isStaticModifier(node: ts.Node): boolean {
