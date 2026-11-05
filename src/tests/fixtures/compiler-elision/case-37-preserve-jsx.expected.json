@@ -1,0 +1,14 @@
+{
+  "id": "case-37",
+  "slug": "preserve-jsx",
+  "file": "case-37-preserve-jsx.tsx",
+  "options": {
+    "jsx": "preserve"
+  },
+  "tsc": true,
+  "esbuild": false,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true,
+  "tscProgram": true
+}

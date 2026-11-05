@@ -1,0 +1,14 @@
+{
+  "id": "case-38",
+  "slug": "automatic-jsx",
+  "file": "case-38-automatic-jsx.tsx",
+  "options": {
+    "jsx": "react-jsx"
+  },
+  "tsc": true,
+  "esbuild": false,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true,
+  "tscProgram": true
+}

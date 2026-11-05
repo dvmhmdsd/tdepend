@@ -112,6 +112,16 @@ const CASES = [
     program: true,
     conservative: true,
   },
+  { id: 'case-35', slug: 'computed-key-interface', ext: 'ts', program: true },
+  { id: 'case-36', slug: 'computed-key-type-literal', ext: 'ts', program: true },
+  { id: 'case-37', slug: 'preserve-jsx', ext: 'tsx', options: { jsx: 'preserve' }, program: true },
+  {
+    id: 'case-38',
+    slug: 'automatic-jsx',
+    ext: 'tsx',
+    options: { jsx: 'react-jsx' },
+    program: true,
+  },
 ];
 
 function fileNameOf(entry) {
@@ -143,6 +153,8 @@ function toTsOptions(options = {}) {
   if (options.experimentalDecorators) compilerOptions.experimentalDecorators = true;
   if (options.emitDecoratorMetadata) compilerOptions.emitDecoratorMetadata = true;
   if (options.jsx === 'react') compilerOptions.jsx = ts.JsxEmit.React;
+  if (options.jsx === 'preserve') compilerOptions.jsx = ts.JsxEmit.Preserve;
+  if (options.jsx === 'react-jsx') compilerOptions.jsx = ts.JsxEmit.ReactJSX;
   return compilerOptions;
 }
 
@@ -176,12 +188,14 @@ function loaderFor(file) {
   return 'js';
 }
 
+const ESBUILD_JSX = { react: 'transform', preserve: 'preserve', 'react-jsx': 'automatic' };
+
 function transformWithEsbuild(file, source, options) {
   const result = esbuild.transformSync(source, {
     loader: loaderFor(file),
     format: 'esm',
     target: 'esnext',
-    jsx: options.jsx === 'react' ? 'transform' : undefined,
+    jsx: ESBUILD_JSX[options.jsx],
     tsconfigRaw: {
       compilerOptions: {
         verbatimModuleSyntax: options.verbatimModuleSyntax,
@@ -206,6 +220,7 @@ function transformWithSwc(file, source, options) {
     decoratorMetadata: options.emitDecoratorMetadata,
   };
   if (options.jsx === 'react') transform.react = { runtime: 'classic' };
+  if (options.jsx === 'react-jsx') transform.react = { runtime: 'automatic' };
   const result = swc.transformSync(source, {
     jsc: { parser: swcParser(file), target: 'esnext', transform },
   });
@@ -224,7 +239,8 @@ function generate() {
     const esbuildKeeps = transformWithEsbuild(file, source, options);
     const swcKeeps = transformWithSwc(file, source, options);
     const conservative = entry.conservative === true;
-    const anyKeep = tsc || esbuildKeeps || swcKeeps;
+    const program = entry.program === true ? emitWithTscProgram(file, path, options) : undefined;
+    const anyKeep = tsc || esbuildKeeps || swcKeeps || program === true;
 
     const expected = {
       id: entry.id,
@@ -237,7 +253,7 @@ function generate() {
       conservative,
       loadsTarget: conservative || anyKeep,
     };
-    if (entry.program === true) expected.tscProgram = emitWithTscProgram(file, path, options);
+    if (program !== undefined) expected.tscProgram = program;
 
     const outPath = join(FIXTURE_DIR, `${entry.id}-${entry.slug}.expected.json`);
     writeFileSync(outPath, `${JSON.stringify(expected, null, 2)}\n`);

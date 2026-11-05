@@ -210,7 +210,11 @@ function collectFileFacts(sourceFile: ts.SourceFile, options: ts.CompilerOptions
       return;
     }
 
-    if (inType || ts.isTypeNode(node)) return;
+    if (inType || ts.isTypeNode(node)) {
+      if (ts.isComputedPropertyName(node)) visit(node.expression, false);
+      else node.forEachChild((child) => visit(child, true));
+      return;
+    }
 
     if (ts.isIdentifier(node) && isReference(node)) record(node.text);
     if (ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node) || ts.isJsxFragment(node)) {
@@ -225,11 +229,9 @@ function collectFileFacts(sourceFile: ts.SourceFile, options: ts.CompilerOptions
 
   visit(sourceFile, false);
 
-  // A class extends clause is a value reference; implements and interface
-  // extends are not. The factory of a classic JSX transform is a value use.
-  if (hasJsx && (options.jsx === ts.JsxEmit.React || options.jsx === ts.JsxEmit.ReactNative)) {
-    record(options.jsxFactory ?? 'React');
-  }
+  // tsc and swc keep the factory import under every `jsx` setting, even the
+  // automatic runtime that never calls it.
+  if (hasJsx) record(options.jsxFactory ?? 'React');
 
   return { valueNames };
 }

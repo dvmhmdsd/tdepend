@@ -44,6 +44,8 @@ function optionsFrom(raw: Record<string, unknown>): ts.CompilerOptions {
   if (raw.experimentalDecorators === true) options.experimentalDecorators = true;
   if (raw.emitDecoratorMetadata === true) options.emitDecoratorMetadata = true;
   if (raw.jsx === 'react') options.jsx = ts.JsxEmit.React;
+  if (raw.jsx === 'preserve') options.jsx = ts.JsxEmit.Preserve;
+  if (raw.jsx === 'react-jsx') options.jsx = ts.JsxEmit.ReactJSX;
   if (raw.module === 'nodenext') {
     options.module = ts.ModuleKind.NodeNext;
     options.moduleResolution = ts.ModuleResolutionKind.NodeNext;
@@ -91,7 +93,8 @@ describe('compiler-elision fixture', () => {
   for (const entry of expectations) {
     it(`${entry.id} ${entry.slug} matches its recorded expectation`, () => {
       const verdict = classify(entry.slug);
-      const anyCompilerKeeps = entry.tsc || entry.esbuild || entry.swc;
+      const anyCompilerKeeps =
+        entry.tsc || entry.esbuild || entry.swc || entry.tscProgram === true;
 
       expect(verdict.loadsTarget).toBe(entry.loadsTarget);
       expect(verdict.reason.length).toBeGreaterThan(0);
