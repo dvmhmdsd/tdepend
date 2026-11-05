@@ -1,0 +1,13 @@
+{
+  "id": "case-39",
+  "slug": "pragma-jsx",
+  "file": "case-39-pragma-jsx.tsx",
+  "options": {
+    "jsx": "react"
+  },
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true
+}

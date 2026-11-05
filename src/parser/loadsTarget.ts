@@ -166,6 +166,8 @@ function fileFacts(sourceFile: ts.SourceFile, options: ts.CompilerOptions): File
   return facts;
 }
 
+const JSX_PRAGMA = /@jsx(?:Frag)?\s+([\w$]+)/gi;
+
 // One name-matching pass over the file. A name counts as a value use when it
 // appears outside a type position and outside the import statements, so the
 // scan never treats the import that declares it as a use of itself. Scopes are
@@ -229,11 +231,19 @@ function collectFileFacts(sourceFile: ts.SourceFile, options: ts.CompilerOptions
 
   visit(sourceFile, false);
 
-  // tsc and swc keep the factory import under every `jsx` setting, even the
-  // automatic runtime that never calls it.
-  if (hasJsx) record(options.jsxFactory ?? 'React');
+  if (hasJsx) jsxFactoryNames(sourceFile, options).forEach(record);
 
   return { valueNames };
+}
+
+// swc keeps the factory import under every `jsx` setting, even the automatic
+// runtime that never calls it. A comment that only looks like a pragma can match
+// here, which keeps an import and never erases one.
+function jsxFactoryNames(sourceFile: ts.SourceFile, options: ts.CompilerOptions): string[] {
+  const names = [options.jsxFactory ?? options.reactNamespace ?? 'React'];
+  if (options.jsxFragmentFactory !== undefined) names.push(options.jsxFragmentFactory);
+  for (const match of sourceFile.text.matchAll(JSX_PRAGMA)) names.push(match[1]);
+  return names.map((name) => name.split('.')[0]);
 }
 
 function visitHeritageClause(

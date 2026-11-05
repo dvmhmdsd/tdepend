@@ -19,6 +19,17 @@ export interface Svc {
 }
 
 export const used = 1;
+export const Frag = 'frag';
+export const Preact = { createElement(): null { return null; } };
+
+export function h(): null {
+  return null;
+}
+
+export function create(): null {
+  return null;
+}
+
 export const KEYS = { a: 'a' } as const;
 export const b = 2;
 

@@ -1,0 +1,15 @@
+{
+  "id": "case-41",
+  "slug": "fragment-factory-option",
+  "file": "case-41-fragment-factory-option.tsx",
+  "options": {
+    "jsx": "react",
+    "jsxFactory": "h",
+    "jsxFragmentFactory": "Frag"
+  },
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true
+}

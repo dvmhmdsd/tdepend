@@ -1,0 +1,14 @@
+{
+  "id": "case-42",
+  "slug": "dotted-factory-option",
+  "file": "case-42-dotted-factory-option.tsx",
+  "options": {
+    "jsx": "react",
+    "jsxFactory": "dep.create"
+  },
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true
+}

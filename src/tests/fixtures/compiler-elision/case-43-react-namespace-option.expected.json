@@ -1,0 +1,14 @@
+{
+  "id": "case-43",
+  "slug": "react-namespace-option",
+  "file": "case-43-react-namespace-option.tsx",
+  "options": {
+    "jsx": "react",
+    "reactNamespace": "Preact"
+  },
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true
+}
