@@ -1,7 +1,7 @@
 {
   "name": "tdepend",
   "version": "0.3.0",
-  "description": "JDepend-inspired dependency analysis tool for TypeScript",
+  "description": "A TypeScript import graph that matches the compiler, the foundation for executable architecture contracts",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
@@ -39,11 +39,7 @@
     "library",
     "api",
     "jdepend",
-    "metrics",
     "architecture",
-    "coupling",
-    "abstractness",
-    "instability",
     "dependency-analysis",
     "code-quality"
   ],
