@@ -168,13 +168,13 @@ function visitDirectory(ctx: WalkContext, dir: string): void {
   entries.sort();
 
   for (const name of entries) {
-    if (shouldSkipDir(name)) continue;
     const abs = join(dir, name);
     const stats = tryStat(ctx.fs, abs);
     if (stats === null) continue;
     const rel = toPosix(relative(ctx.root, abs));
 
     if (stats.isDirectory()) {
+      if (shouldSkipDir(name)) continue;
       if (realRelative(ctx.fs, ctx.root, abs) === null) ctx.handlers.onOutside(rel);
       else visitDirectory(ctx, abs);
     } else if (stats.isFile()) {

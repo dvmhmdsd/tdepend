@@ -113,6 +113,18 @@ describe('discoverProject projects', () => {
     expect(root.dependencies.has('typescript')).toBe(true);
   });
 
+  it('a broken tsconfig in an excluded directory is not parsed', () => {
+    const dir = tempProject({
+      'tsconfig.json': '{}',
+      'fixtures/broken/tsconfig.json': JSON.stringify({ extends: './missing.json' }),
+      'src/index.ts': 'export {};',
+    });
+
+    const ctx = discoverProject(dir, { isExcluded: (rel) => rel.startsWith('fixtures/') });
+
+    expect(ctx.tsconfigs.map((entry) => entry.configPath)).toEqual(['tsconfig.json']);
+  });
+
   it('a package.json in an excluded directory is not a project', () => {
     const dir = tempProject({
       'package.json': JSON.stringify({ name: 'root', private: true }),

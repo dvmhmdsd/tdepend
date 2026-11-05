@@ -59,11 +59,13 @@ export function discoverProject(rootDir: string, opts: DiscoverOptions = {}): Pr
   const readPackage = (rel: string): Record<string, unknown> | null =>
     readJsonObject(fs, join(root, rel));
 
-  const tsconfigs = tsconfigPaths.map((rel) => parseTsconfig(rel, root, warnings));
+  const isExcluded = opts.isExcluded ?? ((): boolean => false);
+  const tsconfigs = tsconfigPaths
+    .filter((rel) => !isExcluded(rel))
+    .map((rel) => parseTsconfig(rel, root, warnings));
 
   const packages = readWorkspacePackages(root, fs, packageSet, readPackage);
 
-  const isExcluded = opts.isExcluded ?? ((): boolean => false);
   const projectDirs = new Set<string>(['']);
   for (const rel of packagePaths) {
     if (isExcluded(rel)) continue;
