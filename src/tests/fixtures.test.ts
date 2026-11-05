@@ -220,8 +220,12 @@ describe('file graph structure', () => {
   });
 });
 
+// 4 s is an early signal for the 10 s budget. Shared Windows runners swing
+// around it on identical code, so they get the budget itself.
+const TIMING_BUDGET_MS = process.platform === 'win32' ? 10_000 : 4000;
+
 describe('file graph timing', () => {
-  it('parses and resolves a generated 2,000-file fixture under 4 s', () => {
+  it('parses and resolves a generated 2,000-file fixture within budget', () => {
     const dir = generateLargeFixture(2000);
 
     const started = performance.now();
@@ -229,6 +233,6 @@ describe('file graph timing', () => {
     const elapsed = performance.now() - started;
 
     expect(result.graph.files()).toHaveLength(2000);
-    expect(elapsed).toBeLessThan(4000);
+    expect(elapsed).toBeLessThan(TIMING_BUDGET_MS);
   }, 30_000);
 });
