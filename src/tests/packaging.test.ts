@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, type ExecFileSyncOptionsWithStringEncoding } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -13,21 +13,19 @@ afterEach(() => {
 });
 
 // Run the pinned pnpm rather than whatever happens to be on PATH: under
-// `pnpm test` npm_execpath points at pnpm's own entry script.
+// `pnpm test` npm_execpath points at pnpm's own entry script. Node refuses to
+// spawn a .cmd file without a shell, which is what pnpm is on Windows.
 function runPnpm(args: string[]): string {
-  const execPath = process.env.npm_execpath;
-  if (execPath !== undefined && execPath.endsWith('.js')) {
-    return execFileSync(process.execPath, [execPath, ...args], {
-      cwd: ROOT,
-      encoding: 'utf-8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-  }
-  return execFileSync(process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm', args, {
+  const options: ExecFileSyncOptionsWithStringEncoding = {
     cwd: ROOT,
     encoding: 'utf-8',
     stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  };
+  const execPath = process.env.npm_execpath;
+  if (execPath !== undefined && /\.c?js$/.test(execPath)) {
+    return execFileSync(process.execPath, [execPath, ...args], options);
+  }
+  return execFileSync('pnpm', args, { ...options, shell: process.platform === 'win32' });
 }
 
 function allowedEntry(entry: string): boolean {
@@ -72,7 +70,9 @@ describe('packed archive', () => {
       const tarball = readdirSync(destination).find((name) => name.endsWith('.tgz'));
       expect(tarball).toBeDefined();
 
-      const listing = execFileSync('tar', ['-tzf', join(destination, tarball as string)], {
+      // A relative name: GNU tar reads the colon in C:\ as a remote host.
+      const listing = execFileSync('tar', ['-tzf', tarball as string], {
+        cwd: destination,
         encoding: 'utf-8',
       });
       const entries = listing

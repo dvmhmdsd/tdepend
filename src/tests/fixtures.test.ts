@@ -230,5 +230,5 @@ describe('file graph timing', () => {
 
     expect(result.graph.files()).toHaveLength(2000);
     expect(elapsed).toBeLessThan(4000);
-  });
+  }, 30_000);
 });

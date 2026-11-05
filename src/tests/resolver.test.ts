@@ -1,6 +1,6 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, isAbsolute, join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -37,7 +37,7 @@ function tempProject(files: Record<string, string>): string {
 }
 
 function harness(name: string, options: Partial<ResolveOptions> = {}): Harness {
-  const root = name.startsWith('/') ? name : join(FIXTURES, name);
+  const root = isAbsolute(name) ? name : join(FIXTURES, name);
   const ctx = discoverProject(root);
   const collected = collectFiles(ctx, {
     include: [],
