@@ -43,7 +43,7 @@ tdepend reads the checkout as it is, so it works before a build and usually befo
 | `-e, --export <path>` | Also write the full result to a JSON file |
 | `--strict-resolution` | Exit 2 when any import is unresolved |
 
-The exit code is 0, or 2 on a config or parse error. With `--strict-resolution` it is also 2 when an import is unresolved, which makes that flag the one gate this version offers for CI.
+The exit code is 0, or 2 on a config or parse error, or when the analysis root doesn't exist. With `--strict-resolution` it is also 2 when an import is unresolved, which makes that flag the one gate this version offers for CI.
 
 The text report looks like this:
 

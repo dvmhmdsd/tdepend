@@ -1,7 +1,9 @@
 import { resolve as resolvePath } from 'node:path';
 
 import { loadConfig } from '../config/loadConfig';
+import { ConfigError } from '../errors';
 import { DEFAULT_SKIPS, collectFiles, createExcludeMatcher } from '../files/collectFiles';
+import { isDir, nodeFileSystem } from '../fs';
 import { buildFileGraph } from '../graph/buildFileGraph';
 import { discoverProject } from '../project/discoverProject';
 import { createResolver } from '../resolver/createResolver';
@@ -25,6 +27,9 @@ export async function analyze(options: AnalyzeOptions = {}): Promise<AnalysisRes
   const baseDir = resolvePath(options.root ?? process.cwd());
   const { config } = loadConfig({ cwd: baseDir, configPath: options.config });
   const rootDir = config.root === '.' ? baseDir : resolvePath(baseDir, config.root);
+  if (!isDir(nodeFileSystem(), rootDir)) {
+    throw new ConfigError(`Root directory not found: ${rootDir}`);
+  }
 
   const ctx = discoverProject(rootDir, {
     isExcluded: createExcludeMatcher(DEFAULT_SKIPS, config.exclude),

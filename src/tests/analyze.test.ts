@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { analyze } from '../api/analyze';
+import { ConfigError } from '../errors';
 
 const FIXTURES = join(process.cwd(), 'src', 'tests', 'fixtures');
 
@@ -52,6 +53,14 @@ describe('analyze tsconfig discovery', () => {
     const result = await analyze({ root });
 
     expect(result.ctx.tsconfigs.map((entry) => entry.configPath)).toEqual(['tsconfig.json']);
+  });
+});
+
+describe('analyze root', () => {
+  it('rejects a root that does not exist', async () => {
+    const root = join(tempProject({ 'package.json': '{}' }), 'no-such-folder');
+
+    await expect(analyze({ root })).rejects.toThrow(ConfigError);
   });
 });
 

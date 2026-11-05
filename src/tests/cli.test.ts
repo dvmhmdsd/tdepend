@@ -46,6 +46,40 @@ describe('--version', () => {
   });
 });
 
+describe('analysis root', () => {
+  it('exits 2 and names a root that does not exist', async () => {
+    const missing = join(dir, 'no-such-folder');
+
+    const code = await runCli(['analyze', '--root', missing, '--strict-resolution'], io());
+
+    expect(code).toBe(2);
+    expect(stderr).toContain(`Root directory not found: ${missing}`);
+    expect(stdout).toBe('');
+  });
+
+  it('exits 2 when the root is a file', async () => {
+    const file = join(dir, 'file.txt');
+    writeFileSync(file, 'not a directory');
+
+    expect(await runCli(['analyze', '--root', file], io())).toBe(2);
+    expect(stderr).toContain(`Root directory not found: ${file}`);
+  });
+
+  it('exits 2 when the config root does not exist', async () => {
+    writeFileSync(join(dir, 'tdepend.config.json'), JSON.stringify({ root: 'no-such-folder' }));
+
+    expect(await runCli(['analyze', '--root', dir], io())).toBe(2);
+    expect(stderr).toContain(`Root directory not found: ${join(dir, 'no-such-folder')}`);
+  });
+
+  it('names a missing root in explain too', async () => {
+    const missing = join(dir, 'no-such-folder');
+
+    expect(await runCli(['explain', 'src/a.ts', '--root', missing], io())).toBe(2);
+    expect(stderr).toContain(`Root directory not found: ${missing}`);
+  });
+});
+
 describe('runCli', () => {
   it('unknown command returns 2 and prints usage to stderr', async () => {
     const code = await runCli(['bogus'], io());
