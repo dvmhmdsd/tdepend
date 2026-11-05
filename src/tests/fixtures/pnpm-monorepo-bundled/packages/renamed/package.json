@@ -1,0 +1,1 @@
+{ "name": "@bundled/renamed", "types": "./dist/index.d.ts" }
