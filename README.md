@@ -31,7 +31,9 @@ tdepend analyze --root path/to/repo # report on another directory
 tdepend explain src/main.tsx        # show every import in one file
 ```
 
-Both commands take `--root <dir>` and `--config <path>`. tdepend reads the checkout as it is, so it works before `pnpm install` or a build. It never writes to the analysed repo unless you point `--export` there.
+Both commands take `--root <dir>` and `--config <path>`. `tdepend --version` prints the version and `tdepend --help` lists the commands.
+
+tdepend reads the checkout as it is, so it works before a build and usually before `pnpm install`. The exception is a `tsconfig` whose `extends` names a package or a generated file. That target must exist, or tdepend exits 2 and names the config. tdepend never writes to the analysed repo unless you point `--export` there.
 
 ### `tdepend analyze`
 
@@ -188,12 +190,14 @@ tdepend looks for `tdepend.config.json` in the analysis root, or uses `--config 
 - **`include`** replaces discovery when it isn't empty. It takes root-relative globs, and `exclude` still applies.
 - **`exclude`** adds to the built-in skips below. An entry starting with `!` removes an earlier pattern, so `"!**/public/**"` keeps `public/`.
 - **`typeOnly`** is `usage` or `syntax`. With `syntax`, every static import counts as loading its target, however its bindings are used.
-- **`compilers`** narrows the runtime verdict to the compilers you really use. An import loads when any listed compiler keeps it.
+- **`compilers`** names the compilers you really use. In 0.3.0 it only changes empty `import {} from` statements, which `tsc` erases and swc keeps.
 - **`resolve.aliases`** is for aliases that exist only in a bundler config, as a prefix map relative to the importing file's project, such as `{ "@/": "src/" }`. Aliases in `tsconfig` `paths` need no config.
 - **`resolve.virtual`** lists extra patterns to treat as `virtual`.
 - **`resolve.ignoreUnresolved`** lists unresolved imports to class as `ignored`.
 
-The built-in skips are test and spec files, `__tests__`, stories, declaration files, `*.min.js`, `dist`, `build`, `coverage`, `public` and a root `e2e` folder. Gitignored files are skipped too. `exclude` also applies to `tsconfig` files, so a deliberately broken one under a fixtures folder can be left out.
+The built-in skips are test and spec files, `__tests__`, stories, declaration files, `*.min.js`, `public` and a root `e2e` folder. Gitignored files are skipped too. Directories named `node_modules`, `dist`, `build`, `out` and `coverage`, and dot directories such as `.storybook`, are never walked, so `include` can't reach them. A `tsconfig` that lists a file in a dot directory still brings that file in.
+
+`exclude` also applies to `tsconfig` files, so a deliberately broken one under a fixtures folder can be left out.
 
 The keys `presets` and `metrics.abstractness` are accepted and have no effect yet. An unknown key exits 2, and so do `rules`, `components`, `baseline` and `metrics.thresholds`, which belong to later releases.
 
