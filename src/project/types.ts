@@ -43,4 +43,5 @@ export interface DiscoverOptions {
   fs?: FileSystemLike;
   localExclude?: string[];
   isExcluded?: (rel: string) => boolean;
+  isConfigExcluded?: (rel: string) => boolean;
 }

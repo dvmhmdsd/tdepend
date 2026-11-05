@@ -120,7 +120,7 @@ describe('discoverProject projects', () => {
       'src/index.ts': 'export {};',
     });
 
-    const ctx = discoverProject(dir, { isExcluded: (rel) => rel.startsWith('fixtures/') });
+    const ctx = discoverProject(dir, { isConfigExcluded: (rel) => rel.startsWith('fixtures/') });
 
     expect(ctx.tsconfigs.map((entry) => entry.configPath)).toEqual(['tsconfig.json']);
   });

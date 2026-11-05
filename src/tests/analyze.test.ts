@@ -1,10 +1,59 @@
-import { join } from 'node:path';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { analyze } from '../api/analyze';
 
 const FIXTURES = join(process.cwd(), 'src', 'tests', 'fixtures');
+
+const tempDirs: string[] = [];
+
+afterEach(() => {
+  for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
+
+function tempProject(files: Record<string, string>): string {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'tdepend-analyze-')));
+  tempDirs.push(root);
+  for (const [rel, text] of Object.entries(files)) {
+    mkdirSync(dirname(join(root, rel)), { recursive: true });
+    writeFileSync(join(root, rel), text);
+  }
+  return root;
+}
+
+describe('analyze tsconfig discovery', () => {
+  it('parses a tsconfig whose name matches a preset test skip', async () => {
+    const root = tempProject({
+      'package.json': '{}',
+      'tsconfig.json': JSON.stringify({ include: ['src'] }),
+      'tsconfig.spec.json': JSON.stringify({ include: ['jest.config.ts'] }),
+      'jest.config.ts': 'export default {};',
+      'src/index.ts': 'export {};',
+    });
+
+    const result = await analyze({ root });
+
+    expect(result.ctx.tsconfigs.map((entry) => entry.configPath)).toContain('tsconfig.spec.json');
+    expect(result.files.uncovered).not.toContain('jest.config.ts');
+  });
+
+  it('skips a broken tsconfig the user excluded', async () => {
+    const root = tempProject({
+      'package.json': '{}',
+      'tdepend.config.json': JSON.stringify({ exclude: ['fixtures/**'] }),
+      'tsconfig.json': JSON.stringify({ include: ['src'] }),
+      'fixtures/broken/tsconfig.json': JSON.stringify({ extends: './missing.json' }),
+      'src/index.ts': 'export {};',
+    });
+
+    const result = await analyze({ root });
+
+    expect(result.ctx.tsconfigs.map((entry) => entry.configPath)).toEqual(['tsconfig.json']);
+  });
+});
 
 describe('analyze', () => {
   it('reports unresolved imports with file and line and the site class counts', async () => {
