@@ -1,0 +1,12 @@
+{
+  "id": "case-36",
+  "slug": "computed-key-type-literal",
+  "file": "case-36-computed-key-type-literal.ts",
+  "options": {},
+  "tsc": true,
+  "esbuild": false,
+  "swc": false,
+  "conservative": false,
+  "loadsTarget": true,
+  "tscProgram": true
+}

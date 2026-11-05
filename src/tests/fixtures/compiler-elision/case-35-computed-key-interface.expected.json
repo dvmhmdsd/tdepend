@@ -1,0 +1,12 @@
+{
+  "id": "case-35",
+  "slug": "computed-key-interface",
+  "file": "case-35-computed-key-interface.ts",
+  "options": {},
+  "tsc": true,
+  "esbuild": false,
+  "swc": false,
+  "conservative": false,
+  "loadsTarget": true,
+  "tscProgram": true
+}

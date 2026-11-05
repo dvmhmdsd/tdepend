@@ -19,6 +19,7 @@ export interface Svc {
 }
 
 export const used = 1;
+export const KEYS = { a: 'a' } as const;
 export const b = 2;
 
 export function bar(): number {
