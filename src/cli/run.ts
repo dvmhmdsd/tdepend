@@ -1,4 +1,5 @@
-import { resolve as resolvePath } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { join, resolve as resolvePath } from 'node:path';
 
 import { Command, CommanderError, Option } from 'commander';
 
@@ -59,12 +60,18 @@ function handleError(error: unknown, io: CliIo): ExitCode {
   return 2;
 }
 
+function packageVersion(): string {
+  const manifest = readFileSync(join(__dirname, '..', '..', 'package.json'), 'utf-8');
+  return (JSON.parse(manifest) as { version: string }).version;
+}
+
 function buildProgram(io: CliIo, setExitCode: (code: ExitCode) => void): Command {
   const program = new Command();
 
   program
     .name('tdepend')
     .description('Executable architecture contracts for TypeScript')
+    .version(packageVersion())
     .exitOverride()
     .showHelpAfterError()
     .configureOutput({
