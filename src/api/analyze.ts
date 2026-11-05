@@ -28,6 +28,7 @@ export async function analyze(options: AnalyzeOptions = {}): Promise<AnalysisRes
 
   const ctx = discoverProject(rootDir, {
     isExcluded: createExcludeMatcher(DEFAULT_SKIPS, config.exclude),
+    isConfigExcluded: createExcludeMatcher([], config.exclude),
   });
   const files = collectFiles(ctx, {
     include: config.include,
