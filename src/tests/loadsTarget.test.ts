@@ -46,6 +46,11 @@ function optionsFrom(raw: Record<string, unknown>): ts.CompilerOptions {
   if (raw.jsx === 'react') options.jsx = ts.JsxEmit.React;
   if (raw.jsx === 'preserve') options.jsx = ts.JsxEmit.Preserve;
   if (raw.jsx === 'react-jsx') options.jsx = ts.JsxEmit.ReactJSX;
+  if (typeof raw.jsxFactory === 'string') options.jsxFactory = raw.jsxFactory;
+  if (typeof raw.jsxFragmentFactory === 'string') {
+    options.jsxFragmentFactory = raw.jsxFragmentFactory;
+  }
+  if (typeof raw.reactNamespace === 'string') options.reactNamespace = raw.reactNamespace;
   if (raw.module === 'nodenext') {
     options.module = ts.ModuleKind.NodeNext;
     options.moduleResolution = ts.ModuleResolutionKind.NodeNext;

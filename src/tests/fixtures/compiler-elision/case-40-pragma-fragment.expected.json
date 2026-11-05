@@ -1,0 +1,13 @@
+{
+  "id": "case-40",
+  "slug": "pragma-fragment",
+  "file": "case-40-pragma-fragment.tsx",
+  "options": {
+    "jsx": "react"
+  },
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true
+}

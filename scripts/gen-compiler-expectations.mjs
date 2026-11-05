@@ -122,6 +122,26 @@ const CASES = [
     options: { jsx: 'react-jsx' },
     program: true,
   },
+  { id: 'case-39', slug: 'pragma-jsx', ext: 'tsx', options: { jsx: 'react' } },
+  { id: 'case-40', slug: 'pragma-fragment', ext: 'tsx', options: { jsx: 'react' } },
+  {
+    id: 'case-41',
+    slug: 'fragment-factory-option',
+    ext: 'tsx',
+    options: { jsx: 'react', jsxFactory: 'h', jsxFragmentFactory: 'Frag' },
+  },
+  {
+    id: 'case-42',
+    slug: 'dotted-factory-option',
+    ext: 'tsx',
+    options: { jsx: 'react', jsxFactory: 'dep.create' },
+  },
+  {
+    id: 'case-43',
+    slug: 'react-namespace-option',
+    ext: 'tsx',
+    options: { jsx: 'react', reactNamespace: 'Preact' },
+  },
 ];
 
 function fileNameOf(entry) {
@@ -155,6 +175,9 @@ function toTsOptions(options = {}) {
   if (options.jsx === 'react') compilerOptions.jsx = ts.JsxEmit.React;
   if (options.jsx === 'preserve') compilerOptions.jsx = ts.JsxEmit.Preserve;
   if (options.jsx === 'react-jsx') compilerOptions.jsx = ts.JsxEmit.ReactJSX;
+  if (options.jsxFactory) compilerOptions.jsxFactory = options.jsxFactory;
+  if (options.jsxFragmentFactory) compilerOptions.jsxFragmentFactory = options.jsxFragmentFactory;
+  if (options.reactNamespace) compilerOptions.reactNamespace = options.reactNamespace;
   return compilerOptions;
 }
 
@@ -188,6 +211,12 @@ function loaderFor(file) {
   return 'js';
 }
 
+// `reactNamespace` is tsc's own option; the other compilers take the factory.
+function factoryOf(options) {
+  if (options.reactNamespace) return `${options.reactNamespace}.createElement`;
+  return options.jsxFactory;
+}
+
 const ESBUILD_JSX = { react: 'transform', preserve: 'preserve', 'react-jsx': 'automatic' };
 
 function transformWithEsbuild(file, source, options) {
@@ -202,6 +231,8 @@ function transformWithEsbuild(file, source, options) {
         preserveValueImports: options.preserveValueImports,
         experimentalDecorators: options.experimentalDecorators,
         emitDecoratorMetadata: options.emitDecoratorMetadata,
+        jsxFactory: factoryOf(options),
+        jsxFragmentFactory: options.jsxFragmentFactory,
       },
     },
   });
@@ -219,7 +250,13 @@ function transformWithSwc(file, source, options) {
     legacyDecorator: options.experimentalDecorators,
     decoratorMetadata: options.emitDecoratorMetadata,
   };
-  if (options.jsx === 'react') transform.react = { runtime: 'classic' };
+  if (options.jsx === 'react') {
+    transform.react = {
+      runtime: 'classic',
+      pragma: factoryOf(options),
+      pragmaFrag: options.jsxFragmentFactory,
+    };
+  }
   if (options.jsx === 'react-jsx') transform.react = { runtime: 'automatic' };
   const result = swc.transformSync(source, {
     jsc: { parser: swcParser(file), target: 'esnext', transform },
