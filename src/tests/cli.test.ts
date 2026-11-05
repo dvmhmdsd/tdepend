@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -31,6 +31,19 @@ beforeEach(() => {
 
 afterEach(() => {
   rmSync(dir, { recursive: true, force: true });
+});
+
+describe('--version', () => {
+  it('prints the version from package.json', async () => {
+    const manifest = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf-8')) as {
+      version: string;
+    };
+
+    const code = await runCli(['--version'], io());
+
+    expect(code).toBe(0);
+    expect(stdout.trim()).toBe(manifest.version);
+  });
 });
 
 describe('runCli', () => {
