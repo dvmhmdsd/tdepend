@@ -218,7 +218,7 @@ Version 0.3.0 is a rewrite, with no compatibility layer. The old graph missed al
 
 | Level | Layouts |
 |---|---|
-| **Supported**, covered by a fixture | NestJS with CommonJS or NodeNext, NestJS monorepos using `paths`, Next.js apps, Vite with TanStack Router, TanStack Start, Express in CommonJS JavaScript, Fastify in ESM, plain Node libraries, feature-based frontends, pnpm and npm workspaces including unbuilt packages, several apps without a workspace config, nested projects |
+| **Supported**, covered by a fixture | NestJS with CommonJS or NodeNext, NestJS monorepos using `paths`, Next.js apps, Vite with TanStack Router, TanStack Start, Express in CommonJS JavaScript, Fastify in ESM, plain Node libraries, feature-based frontends, pnpm and npm workspaces including unbuilt and bundler-built packages, several apps without a workspace config, nested projects |
 | **Configured manually** | Aliases that exist only in a bundler config, through `resolve.aliases`; unusual layouts, through `include` |
 | **Experimental** | Yarn workspaces without Plug'n'Play, which use the same `package.json` form as npm but have no fixture of their own |
 | **Unsupported** | Vue, Svelte and Astro single-file components, Yarn Plug'n'Play, non-literal dynamic loading |

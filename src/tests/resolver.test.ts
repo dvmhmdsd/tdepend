@@ -523,6 +523,51 @@ describe('resolver source mapping', () => {
   });
 });
 
+describe('resolver bundler-built packages', () => {
+  const consumer = 'packages/app/src/index.ts';
+
+  it('maps a built package with no outDir back to its source', () => {
+    const h = harness('pnpm-monorepo-bundled');
+
+    expect(resolveInFile(h, consumer, '@bundled/built')).toMatchObject({
+      class: 'workspace',
+      target: { file: 'packages/built/src/index.ts' },
+      mapped: { from: 'packages/built/dist/index.d.ts' },
+    });
+    expect(resolveInFile(h, consumer, '@bundled/built/feature')).toMatchObject({
+      class: 'workspace',
+      target: { file: 'packages/built/src/feature/index.ts' },
+    });
+  });
+
+  it('gives an unbuilt package the same source edge', () => {
+    const h = harness('pnpm-monorepo-bundled');
+
+    expect(resolveInFile(h, consumer, '@bundled/unbuilt')).toMatchObject({
+      class: 'workspace',
+      target: { file: 'packages/unbuilt/src/index.ts' },
+    });
+  });
+
+  it('maps declarations a bundler emits under dist/src', () => {
+    const h = harness('pnpm-monorepo-bundled');
+
+    expect(resolveInFile(h, consumer, '@bundled/nested')).toMatchObject({
+      class: 'workspace',
+      target: { file: 'packages/nested/src/index.ts' },
+    });
+  });
+
+  it('leaves a declaration file outside dist, build and out as excluded', () => {
+    const h = harness('pnpm-monorepo-bundled');
+
+    expect(resolveInFile(h, consumer, '@bundled/typed')).toMatchObject({
+      class: 'excluded',
+      target: { file: 'packages/typed/types/index.d.ts' },
+    });
+  });
+});
+
 describe('resolver node_modules', () => {
   it('resolves a declared, installed package from a real nested node_modules', () => {
     const h = harness('multi-app-no-workspaces');

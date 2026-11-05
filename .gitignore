@@ -27,6 +27,7 @@ yarn-error.log*
 # Vitest / Vite
 .vite/
 **/.vitest
+**/.vitest-cache/
 
 # Local planning and internal evidence (never published)
 docs/superpowers/
