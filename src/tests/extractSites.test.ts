@@ -97,6 +97,32 @@ describe('parseFile import sites', () => {
     expect(inIife.deferred).toBe(false);
   });
 
+  it('lets an enclosing function defer a site inside code that runs in place', () => {
+    const inIife = only(`function f() {\n  (() => import('./a'))();\n}\n`);
+    expect(inIife.deferred).toBe(true);
+
+    const inStaticBlock = only(
+      `function f() {\n  class C {\n    static {\n      import('./b');\n    }\n  }\n}\n`,
+    );
+    expect(inStaticBlock.deferred).toBe(true);
+
+    const inStaticField = only(`function f() {\n  class C {\n    static x = import('./c');\n  }\n}\n`);
+    expect(inStaticField.deferred).toBe(true);
+  });
+
+  it('keeps a site in nested code that runs in place undeferred at the top level', () => {
+    const nestedIife = only(`(() => {\n  (() => import('./a'))();\n})();\n`);
+    expect(nestedIife.deferred).toBe(false);
+
+    const staticInIife = only(`(() => {\n  class C {\n    static x = import('./b');\n  }\n})();\n`);
+    expect(staticInIife.deferred).toBe(false);
+  });
+
+  it('defers an instance field even inside code that runs in place', () => {
+    const inIife = only(`(() => {\n  class C {\n    x = import('./a');\n  }\n})();\n`);
+    expect(inIife.deferred).toBe(true);
+  });
+
   it('flags a non-literal specifier as unsupported', () => {
     const site = only(`const name = './a';\nconst m = import(name);\n`);
 
