@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -125,6 +125,23 @@ describe('collectFiles analysis set', () => {
       'src/features/cart/index.ts',
       'src/main.tsx',
     ]);
+  });
+
+  it('analyses dot files but skips dot directories', () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'tdepend-dotfile-')));
+    tempDirs.push(root);
+    mkdirSync(join(root, '.cache'));
+    writeFileSync(join(root, 'package.json'), '{}');
+    writeFileSync(join(root, '.eslintrc.js'), 'module.exports = {};\n');
+    writeFileSync(join(root, '.cache', 'hidden.js'), 'module.exports = {};\n');
+
+    const result = collectFiles(discoverProject(root), {
+      include: [],
+      exclude: [],
+      presetSkips: DEFAULT_SKIPS,
+    });
+
+    expect(result.files).toEqual(['.eslintrc.js']);
   });
 
   it('uses / separators and sorts every listing', () => {
