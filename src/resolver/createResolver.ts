@@ -148,7 +148,7 @@ export function createResolver(
       return { class: 'unresolved', target: null, reason: 'outside-root', requested };
     }
 
-    const candidates = outputSourceCandidates(resolvedRel, ctx);
+    const candidates = outputSourceCandidates(resolvedRel, ctx, fs);
     let targetRel = resolvedRel;
     let mapped: { from: string } | undefined;
 
