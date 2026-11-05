@@ -567,6 +567,42 @@ describe('resolver bundler-built packages', () => {
     });
   });
 
+  it('leaves prebuilt output with no source as excluded, not unresolved', () => {
+    const h = harness('pnpm-monorepo-bundled');
+
+    expect(resolveInFile(h, consumer, '@bundled/vendored')).toMatchObject({
+      class: 'excluded',
+      target: { file: 'packages/vendored/dist/widget.js' },
+    });
+  });
+
+  it('leaves output renamed by a bundler as excluded, not unresolved', () => {
+    const h = harness('pnpm-monorepo-bundled');
+
+    expect(resolveInFile(h, consumer, '@bundled/renamed')).toMatchObject({
+      class: 'excluded',
+      target: { file: 'packages/renamed/dist/index.d.ts' },
+    });
+  });
+
+  it('trusts an output directory declared inside dist', () => {
+    const h = harness('pnpm-monorepo-bundled');
+
+    expect(resolveInFile(h, consumer, '@bundled/nestedout')).toMatchObject({
+      class: 'workspace',
+      target: { file: 'packages/nestedout/src/index.ts' },
+    });
+  });
+
+  it('does not map into the repo root through a wide rootDir', () => {
+    const h = harness('pnpm-monorepo-bundled');
+
+    expect(resolveInFile(h, consumer, '@bundled/wideroot')).toMatchObject({
+      class: 'workspace',
+      target: { file: 'packages/wideroot/src/index.ts' },
+    });
+  });
+
   it('leaves a declaration file outside dist, build and out as excluded', () => {
     const h = harness('pnpm-monorepo-bundled');
 

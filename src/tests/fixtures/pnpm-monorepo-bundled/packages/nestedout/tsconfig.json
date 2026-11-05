@@ -1,0 +1,1 @@
+{ "compilerOptions": { "outDir": "lib", "declaration": true, "declarationDir": "dist/types", "rootDir": "src", "module": "esnext", "moduleResolution": "bundler", "strict": true }, "include": ["src"] }

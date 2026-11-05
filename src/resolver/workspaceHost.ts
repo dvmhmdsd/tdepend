@@ -44,6 +44,7 @@ interface WorkspacePackageDir {
 interface OutputEntry {
   out: string;
   sources: string[];
+  inferred: boolean;
 }
 
 interface Layout {
@@ -68,7 +69,7 @@ function layoutOf(ctx: ProjectContext): Layout {
     if (entry.rootDir === '') continue;
     for (const out of [entry.outDir, entry.declarationDir]) {
       if (out === undefined || out === '') continue;
-      outputs.push({ out, sources: [entry.rootDir] });
+      outputs.push({ out, sources: [entry.rootDir], inferred: false });
     }
   }
 
@@ -82,17 +83,19 @@ function layoutOf(ctx: ProjectContext): Layout {
 // A bundler's output directory appears in no tsconfig. These names are safe to
 // assume because the analysis never treats them as source.
 function addBundlerOutputs(ctx: ProjectContext, outputs: OutputEntry[]): void {
-  const declared = new Set(outputs.map((entry) => entry.out));
+  const declared = outputs.map((entry) => entry.out);
 
   for (const pkg of ctx.packages) {
     const configRoots = ctx.tsconfigs
       .filter((entry) => posixDirname(entry.configPath) === pkg.dir)
-      .map((entry) => entry.rootDir);
+      .map((entry) => entry.rootDir)
+      .filter((root) => isUnderDirectory(pkg.dir, root));
     const sources = [...new Set([...configRoots, posixJoin(pkg.dir, 'src'), pkg.dir])];
 
     for (const name of BUNDLER_OUTPUT_DIRS) {
       const out = posixJoin(pkg.dir, name);
-      if (!declared.has(out)) outputs.push({ out, sources });
+      if (declared.some((path) => isUnderDirectory(out, path))) continue;
+      outputs.push({ out, sources, inferred: true });
     }
   }
 }
@@ -127,8 +130,8 @@ function isOutputPath(path: string, ctx: ProjectContext): boolean {
   return layoutOf(ctx).outputs.some((entry) => isUnderDirectory(entry.out, rel));
 }
 
-// Within one output directory the first source prefix with a real file wins, so
-// only candidates from different output directories can be ambiguous by prefix.
+// The first source prefix with a real file wins. An inferred directory is a
+// guess, so it offers only real files: with none, the path is left as it is.
 export function outputSourceCandidates(
   path: string,
   ctx: ProjectContext,
@@ -142,10 +145,11 @@ export function outputSourceCandidates(
     const rest = rel.slice(entry.out.length + 1);
     for (const source of entry.sources) {
       const computed = swapToSourceExtensions(rest).map((name) => posixJoin(source, name));
-      for (const candidate of computed) {
+      const existing = computed.filter((candidate) => isFile(fs, join(ctx.rootDir, candidate)));
+      for (const candidate of entry.inferred ? existing : computed) {
         if (!candidates.includes(candidate)) candidates.push(candidate);
       }
-      if (computed.some((candidate) => isFile(fs, join(ctx.rootDir, candidate)))) break;
+      if (existing.length > 0) break;
     }
   }
 

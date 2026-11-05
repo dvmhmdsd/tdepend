@@ -4,8 +4,12 @@
   "dependencies": {
     "@bundled/built": "workspace:*",
     "@bundled/nested": "workspace:*",
+    "@bundled/nestedout": "workspace:*",
+    "@bundled/renamed": "workspace:*",
     "@bundled/rooted": "workspace:*",
     "@bundled/typed": "workspace:*",
-    "@bundled/unbuilt": "workspace:*"
+    "@bundled/unbuilt": "workspace:*",
+    "@bundled/vendored": "workspace:*",
+    "@bundled/wideroot": "workspace:*"
   }
 }
