@@ -445,16 +445,21 @@ function readJsonObject(fs: FileSystemLike, path: string): Record<string, unknow
   }
 }
 
+const DEPENDENCY_FIELDS = [
+  'dependencies',
+  'devDependencies',
+  'peerDependencies',
+  'optionalDependencies',
+] as const;
+
 function declaresDependencies(pkg: Record<string, unknown>): boolean {
-  return (['dependencies', 'devDependencies', 'peerDependencies'] as const).some(
-    (key) => pkg[key] !== null && typeof pkg[key] === 'object',
-  );
+  return DEPENDENCY_FIELDS.some((key) => pkg[key] !== null && typeof pkg[key] === 'object');
 }
 
 function dependenciesOf(pkg: Record<string, unknown> | null): Set<string> {
   const deps = new Set<string>();
   if (pkg === null) return deps;
-  for (const key of ['dependencies', 'devDependencies', 'peerDependencies'] as const) {
+  for (const key of DEPENDENCY_FIELDS) {
     const value = pkg[key];
     if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
       for (const name of Object.keys(value)) deps.add(name);

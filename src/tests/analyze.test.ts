@@ -55,6 +55,24 @@ describe('analyze tsconfig discovery', () => {
   });
 });
 
+describe('analyze declared packages', () => {
+  it('classes an uninstalled optional dependency as external, not unresolved', async () => {
+    const root = tempProject({
+      'package.json': JSON.stringify({ optionalDependencies: { 'optional-demo': '1.0.0' } }),
+      'tsconfig.json': JSON.stringify({ include: ['src'] }),
+      'src/index.ts': "import 'optional-demo';\n",
+    });
+
+    const result = await analyze({ root });
+
+    expect(result.report.stats.unresolved).toBe(0);
+    expect(result.sites[0].resolution).toMatchObject({
+      class: 'external',
+      reason: 'not-installed',
+    });
+  });
+});
+
 describe('analyze', () => {
   it('reports unresolved imports with file and line and the site class counts', async () => {
     const result = await analyze({ root: join(FIXTURES, 'vite-tanstack-router') });

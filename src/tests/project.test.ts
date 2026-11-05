@@ -125,6 +125,19 @@ describe('discoverProject projects', () => {
     expect(ctx.tsconfigs.map((entry) => entry.configPath)).toEqual(['tsconfig.json']);
   });
 
+  it('a package with only optional dependencies is a project', () => {
+    const dir = tempProject({
+      'package.json': JSON.stringify({ name: 'root', private: true }),
+      'tools/package.json': JSON.stringify({ optionalDependencies: { 'optional-demo': '1' } }),
+      'tools/run.ts': 'export {};',
+    });
+
+    const ctx = discoverProject(dir);
+
+    expect(ctx.projects.map((p) => p.id)).toContain('proj:tools');
+    expect(ctx.projectFor('tools/run.ts').dependencies.has('optional-demo')).toBe(true);
+  });
+
   it('a package.json in an excluded directory is not a project', () => {
     const dir = tempProject({
       'package.json': JSON.stringify({ name: 'root', private: true }),
