@@ -558,6 +558,15 @@ describe('resolver bundler-built packages', () => {
     });
   });
 
+  it('prefers the source directory over a root index beside it', () => {
+    const h = harness('pnpm-monorepo-bundled');
+
+    expect(resolveInFile(h, consumer, '@bundled/rooted')).toMatchObject({
+      class: 'workspace',
+      target: { file: 'packages/rooted/src/index.ts' },
+    });
+  });
+
   it('leaves a declaration file outside dist, build and out as excluded', () => {
     const h = harness('pnpm-monorepo-bundled');
 

@@ -2,5 +2,7 @@
   ["packages/app/src/index.ts", "packages/built/src/feature/index.ts", ["static"], true],
   ["packages/app/src/index.ts", "packages/built/src/index.ts", ["static"], true],
   ["packages/app/src/index.ts", "packages/nested/src/index.ts", ["static"], true],
-  ["packages/app/src/index.ts", "packages/unbuilt/src/index.ts", ["static"], true]
+  ["packages/app/src/index.ts", "packages/rooted/src/index.ts", ["static"], true],
+  ["packages/app/src/index.ts", "packages/unbuilt/src/index.ts", ["static"], true],
+  ["packages/rooted/index.ts", "packages/rooted/src/index.ts", ["re-export"], true]
 ]

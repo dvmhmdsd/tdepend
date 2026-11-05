@@ -43,7 +43,7 @@ interface WorkspacePackageDir {
 
 interface OutputEntry {
   out: string;
-  source: string;
+  sources: string[];
 }
 
 interface Layout {
@@ -68,7 +68,7 @@ function layoutOf(ctx: ProjectContext): Layout {
     if (entry.rootDir === '') continue;
     for (const out of [entry.outDir, entry.declarationDir]) {
       if (out === undefined || out === '') continue;
-      outputs.push({ out, source: entry.rootDir });
+      outputs.push({ out, sources: [entry.rootDir] });
     }
   }
 
@@ -88,12 +88,11 @@ function addBundlerOutputs(ctx: ProjectContext, outputs: OutputEntry[]): void {
     const configRoots = ctx.tsconfigs
       .filter((entry) => posixDirname(entry.configPath) === pkg.dir)
       .map((entry) => entry.rootDir);
-    const sources = new Set([...configRoots, posixJoin(pkg.dir, 'src'), pkg.dir]);
+    const sources = [...new Set([...configRoots, posixJoin(pkg.dir, 'src'), pkg.dir])];
 
     for (const name of BUNDLER_OUTPUT_DIRS) {
       const out = posixJoin(pkg.dir, name);
-      if (declared.has(out)) continue;
-      for (const source of sources) outputs.push({ out, source });
+      if (!declared.has(out)) outputs.push({ out, sources });
     }
   }
 }
@@ -123,16 +122,30 @@ export function redirectWorkspacePath(path: string, ctx: ProjectContext): string
   return pkg.dirNative + (sep === '/' ? suffix : suffix.split('/').join(sep));
 }
 
-export function outputSourceCandidates(path: string, ctx: ProjectContext): string[] {
+function isOutputPath(path: string, ctx: ProjectContext): boolean {
+  const rel = rootRelativePosix(toPosix(ctx.rootDir), toPosix(path));
+  return layoutOf(ctx).outputs.some((entry) => isUnderDirectory(entry.out, rel));
+}
+
+// Within one output directory the first source prefix with a real file wins, so
+// only candidates from different output directories can be ambiguous by prefix.
+export function outputSourceCandidates(
+  path: string,
+  ctx: ProjectContext,
+  fs: FileSystemLike,
+): string[] {
   const rel = rootRelativePosix(toPosix(ctx.rootDir), toPosix(path));
   const candidates: string[] = [];
 
   for (const entry of layoutOf(ctx).outputs) {
     if (!isUnderDirectory(entry.out, rel)) continue;
     const rest = rel.slice(entry.out.length + 1);
-    for (const candidate of swapToSourceExtensions(rest)) {
-      const computed = entry.source === '' ? candidate : `${entry.source}/${candidate}`;
-      if (!candidates.includes(computed)) candidates.push(computed);
+    for (const source of entry.sources) {
+      const computed = swapToSourceExtensions(rest).map((name) => posixJoin(source, name));
+      for (const candidate of computed) {
+        if (!candidates.includes(candidate)) candidates.push(candidate);
+      }
+      if (computed.some((candidate) => isFile(fs, join(ctx.rootDir, candidate)))) break;
     }
   }
 
@@ -171,7 +184,7 @@ export function createWorkspaceHost(
     fileExists: (path) => {
       const real = redirectWorkspacePath(path, ctx);
       if (isFile(fs, real)) return true;
-      return outputSourceCandidates(real, ctx).some((candidate) =>
+      return outputSourceCandidates(real, ctx, fs).some((candidate) =>
         isFile(fs, join(ctx.rootDir, candidate)),
       );
     },
@@ -182,7 +195,7 @@ export function createWorkspaceHost(
     directoryExists: (path) => {
       const real = redirectWorkspacePath(path, ctx);
       if (isDir(fs, real)) return true;
-      return isVirtualNodeModulesDirectory(path);
+      return isVirtualNodeModulesDirectory(path) || isOutputPath(real, ctx);
     },
     getCurrentDirectory: () => ctx.rootDir,
     getDirectories: (path) => {

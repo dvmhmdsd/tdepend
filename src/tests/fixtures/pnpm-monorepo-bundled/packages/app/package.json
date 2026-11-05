@@ -4,6 +4,7 @@
   "dependencies": {
     "@bundled/built": "workspace:*",
     "@bundled/nested": "workspace:*",
+    "@bundled/rooted": "workspace:*",
     "@bundled/typed": "workspace:*",
     "@bundled/unbuilt": "workspace:*"
   }
