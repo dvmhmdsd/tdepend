@@ -22,6 +22,7 @@ const REPO_FIXTURES = [
   'node-library',
   'npm-workspaces',
   'pnpm-monorepo',
+  'pnpm-monorepo-bundled',
   'pnpm-monorepo-declaration-dir',
   'pnpm-monorepo-unbuilt',
   'pnpm-settings-only',

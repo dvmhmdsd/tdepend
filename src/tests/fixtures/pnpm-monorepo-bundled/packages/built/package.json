@@ -1,0 +1,7 @@
+{
+  "name": "@bundled/built",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.es.js" },
+    "./feature": { "types": "./dist/feature/index.d.ts", "import": "./dist/feature/index.js" }
+  }
+}

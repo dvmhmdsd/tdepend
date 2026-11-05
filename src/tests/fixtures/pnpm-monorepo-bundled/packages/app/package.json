@@ -1,0 +1,10 @@
+{
+  "name": "@bundled/app",
+  "private": true,
+  "dependencies": {
+    "@bundled/built": "workspace:*",
+    "@bundled/nested": "workspace:*",
+    "@bundled/typed": "workspace:*",
+    "@bundled/unbuilt": "workspace:*"
+  }
+}

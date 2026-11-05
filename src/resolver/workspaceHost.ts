@@ -51,6 +51,7 @@ interface Layout {
   outputs: OutputEntry[];
 }
 
+const BUNDLER_OUTPUT_DIRS = ['dist', 'build', 'out'];
 const LAYOUTS = new WeakMap<ProjectContext, Layout>();
 
 function layoutOf(ctx: ProjectContext): Layout {
@@ -71,9 +72,30 @@ function layoutOf(ctx: ProjectContext): Layout {
     }
   }
 
+  addBundlerOutputs(ctx, outputs);
+
   const layout: Layout = { packages, outputs };
   LAYOUTS.set(ctx, layout);
   return layout;
+}
+
+// A bundler's output directory appears in no tsconfig. These names are safe to
+// assume because the analysis never treats them as source.
+function addBundlerOutputs(ctx: ProjectContext, outputs: OutputEntry[]): void {
+  const declared = new Set(outputs.map((entry) => entry.out));
+
+  for (const pkg of ctx.packages) {
+    const configRoots = ctx.tsconfigs
+      .filter((entry) => posixDirname(entry.configPath) === pkg.dir)
+      .map((entry) => entry.rootDir);
+    const sources = new Set([...configRoots, posixJoin(pkg.dir, 'src'), pkg.dir]);
+
+    for (const name of BUNDLER_OUTPUT_DIRS) {
+      const out = posixJoin(pkg.dir, name);
+      if (declared.has(out)) continue;
+      for (const source of sources) outputs.push({ out, source });
+    }
+  }
 }
 
 export function packageNameOf(specifier: string): string {
