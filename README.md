@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-tdepend's goal is to make TypeScript architecture contracts executable. Version 0.3.0 delivers the foundation those contracts need: an import graph that matches the TypeScript compiler.
+tdepend's goal is to make TypeScript architecture contracts executable. Version 0.3 delivers the foundation those contracts need: an import graph that matches the TypeScript compiler.
 
 It finds your projects, workspace packages and `tsconfig` files, then resolves every import through TypeScript's own resolver. For each import it records:
 
@@ -173,7 +173,7 @@ for (const row of rows) {
 
 ## Configuration
 
-tdepend looks for `tdepend.config.json` in the analysis root, or uses `--config <path>`. A config is optional. These are the keys that work in 0.3.0, with their defaults:
+tdepend looks for `tdepend.config.json` in the analysis root, or uses `--config <path>`. A config is optional. These are the keys that work in 0.3, with their defaults:
 
 ```json
 {
@@ -190,7 +190,7 @@ tdepend looks for `tdepend.config.json` in the analysis root, or uses `--config 
 - **`include`** replaces discovery when it isn't empty. It takes root-relative globs, and `exclude` still applies.
 - **`exclude`** adds to the built-in skips below. An entry starting with `!` removes an earlier pattern, so `"!**/public/**"` keeps `public/`.
 - **`typeOnly`** is `usage` or `syntax`. With `syntax`, every static import counts as loading its target, however its bindings are used.
-- **`compilers`** names the compilers you really use. In 0.3.0 it only changes empty `import {} from` statements, which `tsc` erases and swc keeps.
+- **`compilers`** names the compilers you really use. In 0.3 it only changes empty `import {} from` statements, which `tsc` erases and swc keeps.
 - **`resolve.aliases`** is for aliases that exist only in a bundler config, as a prefix map relative to the importing file's project, such as `{ "@/": "src/" }`. Aliases in `tsconfig` `paths` need no config.
 - **`resolve.virtual`** lists extra patterns to treat as `virtual`.
 - **`resolve.ignoreUnresolved`** lists unresolved imports to class as `ignored`.
@@ -203,9 +203,9 @@ The keys `presets` and `metrics.abstractness` are accepted and have no effect ye
 
 ## Migrating from 0.2
 
-Version 0.3.0 is a rewrite, with no compatibility layer. The old graph missed aliases, re-exports, dynamic imports and workspace packages, so it was replaced rather than patched.
+Version 0.3 is a rewrite, with no compatibility layer. The old graph missed aliases, re-exports, dynamic imports and workspace packages, so it was replaced rather than patched.
 
-- **Metrics and cycles are gone for now.** 0.3.0 reports the graph only. Coupling metrics, cycles and rules arrive in 0.4, through a new `check` command with baselines. Comparing a pull request against its base arrives in 0.5.
+- **Metrics and cycles are gone for now.** 0.3 reports the graph only. Coupling metrics, cycles and rules arrive in 0.4, through a new `check` command with baselines. Comparing a pull request against its base arrives in 0.5.
 - **Removed exports:** `analyzeWithConfig`, `exportToJson`, `DependencyGraph`, `detectCycles`, `computeAllMetrics`, `parseProject` and `scanFiles`. The public API is now the four functions above.
 - **Removed CLI option:** `--ci`. Use `--format json` for machine output and `--strict-resolution` to fail a build.
 - **Removed config keys:** `rootDir`, `ci`, `analysis` and `metrics.enabled`. `metrics.thresholds` returns in 0.4.

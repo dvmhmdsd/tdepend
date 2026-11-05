@@ -1,6 +1,6 @@
 {
   "name": "tdepend",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "A TypeScript import graph that matches the compiler, the foundation for executable architecture contracts",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
