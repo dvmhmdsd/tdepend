@@ -299,6 +299,20 @@ describe('buildGroupGraph', () => {
     expect(result.edges.every((edge) => edge.sites.length > 0)).toBe(true);
   });
 
+  it('lists the files of each group', () => {
+    expect(groupGraph.filesOf(group('src/a'))).toEqual(['src/a/one.ts', 'src/a/two.ts']);
+    expect(groupGraph.filesOf(group('src/c'))).toEqual(['src/c/four.ts']);
+  });
+
+  it('puts files outside every package in the workspace-root bucket at the package level', () => {
+    const { graph: real, sites } = buildFixture('pnpm-monorepo');
+    const packages = assignComponents(context('pnpm-monorepo'), real.files(), directory('src'));
+    const result = buildGroupGraph(real, packages, 'package', sites);
+    const bucket = result.groups.find((g) => g.id === 'pkg:(workspace-root)')!;
+
+    expect(result.filesOf(bucket)).toEqual(['scripts/seed.ts', 'scripts/util.ts']);
+  });
+
   it('a repo without workspaces has an empty package graph', () => {
     const result = buildGroupGraph(graph, assignment, 'package', recordsOf(edges));
 

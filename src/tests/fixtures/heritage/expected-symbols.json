@@ -1,7 +1,9 @@
 {
   "declarations": {
     "src/adapter.ts": [["Adapter", "class", true]],
+    "src/alias-target.ts": [["Target", "interface", true], ["TargetAlias", "type", true], ["ViaAlias", "class", true]],
     "src/ambiguous.ts": [["Single", "class", true], ["Twin", "class", true]],
+    "src/ancestry.ts": [["Branch", "interface", true], ["Leaf", "class", true], ["Root", "interface", true]],
     "src/boxed.ts": [["Boxed", "class", true]],
     "src/contract.ts": [["Clock", "interface", true], ["Port", "interface", true], ["Shape", "interface", true]],
     "src/cycle-a.ts": [],
@@ -54,8 +56,11 @@
   },
   "heritage": [
     ["src/adapter.ts#Adapter", "implements", "Port", "src/contract.ts#Port"],
+    ["src/alias-target.ts#ViaAlias", "implements", "TargetAlias", "src/alias-target.ts#Target"],
     ["src/ambiguous.ts#Single", "implements", "Port", "src/contract.ts#Port"],
     ["src/ambiguous.ts#Twin", "implements", "Dup", null, "ambiguous"],
+    ["src/ancestry.ts#Branch", "extends", "Root", "src/ancestry.ts#Root"],
+    ["src/ancestry.ts#Leaf", "implements", "Branch", "src/ancestry.ts#Branch"],
     ["src/boxed.ts#Boxed", "implements", "Box", "src/contract.ts#Shape"],
     ["src/cyclic.ts#Kept", "implements", "Found", "src/cycle-b.ts#Found"],
     ["src/cyclic.ts#Lost", "implements", "Nowhere", null, "missing"],

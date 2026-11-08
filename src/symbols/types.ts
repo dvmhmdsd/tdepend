@@ -23,6 +23,7 @@ export type HeritageClause = 'implements' | 'extends';
 
 export interface HeritageRef {
   from: Declaration;
+  owner: 'class' | 'interface';
   clause: HeritageClause;
   name: string;
   resolved: Declaration | null;

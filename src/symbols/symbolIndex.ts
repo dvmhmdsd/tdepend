@@ -119,7 +119,13 @@ function heritageRef(
     entry.path === null
       ? unresolved('computed')
       : bindings.followAliases(bindings.resolvePath(table, entry.path));
-  const ref: HeritageRef = { from, clause: entry.clause, name: entry.name, resolved: null };
+  const ref: HeritageRef = {
+    from,
+    owner: entry.owner,
+    clause: entry.clause,
+    name: entry.name,
+    resolved: null,
+  };
   if (entity.type === 'declaration') ref.resolved = entity.declaration;
   else ref.unresolvedReason = entity.type === 'namespace' ? 'missing' : entity.reason;
   return ref;
