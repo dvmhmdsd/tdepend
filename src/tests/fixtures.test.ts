@@ -13,6 +13,7 @@ const REPO_FIXTURES = [
   'express-js-cjs',
   'fastify-esm',
   'feature-frontend',
+  'heritage',
   'multi-app-no-workspaces',
   'nest-cjs',
   'nest-monorepo-paths',
