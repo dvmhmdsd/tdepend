@@ -1,0 +1,79 @@
+{
+  "declarations": {
+    "src/adapter.ts": [["Adapter", "class", true]],
+    "src/ambiguous.ts": [["Single", "class", true], ["Twin", "class", true]],
+    "src/boxed.ts": [["Boxed", "class", true]],
+    "src/contract.ts": [["Clock", "interface", true], ["Port", "interface", true], ["Shape", "interface", true]],
+    "src/cycle-a.ts": [],
+    "src/cycle-b.ts": [["Found", "interface", true]],
+    "src/cyclic.ts": [["Kept", "class", true], ["Lost", "class", true]],
+    "src/default-class.ts": [["Service", "class", true]],
+    "src/default-expression.ts": [["default", "default-expression", true]],
+    "src/direct.ts": [["DirectAdapter", "class", true]],
+    "src/dup-a.ts": [["Dup", "interface", true]],
+    "src/dup-b.ts": [["Dup", "interface", true]],
+    "src/external.ts": [
+      ["Emitter", "class", true],
+      ["Failure", "class", true],
+      ["Mixed", "class", true],
+      ["Qualified", "class", true],
+      ["mix", "function", false]
+    ],
+    "src/functions.ts": [
+      ["fetchAll", "variable", true],
+      ["fetchOne", "variable", true],
+      ["format", "function", true],
+      ["helper", "variable", true],
+      ["internal", "function", true],
+      ["load", "function", true],
+      ["sync", "variable", true]
+    ],
+    "src/legacy-object.js": [["name", "cjs-export", true], ["start", "cjs-export", true], ["stop", "cjs-export", true]],
+    "src/legacy.js": [["helper", "cjs-export", true], ["version", "cjs-export", true]],
+    "src/merging.ts": [["Merged", "interface", true], ["Schema", "type", true], ["Twice", "interface", true]],
+    "src/named-barrel.ts": [],
+    "src/order-repository.ts": [["OrderRepository", "class", true]],
+    "src/repository.ts": [["Repository", "abstract-class", true]],
+    "src/shapes.ts": [
+      ["Pair", "type", true],
+      ["Readable", "interface", true],
+      ["Source", "type", true],
+      ["Stream", "interface", true]
+    ],
+    "src/stars.ts": [],
+    "src/streams.ts": [
+      ["AliasSource", "class", true],
+      ["FileStream", "class", true],
+      ["Hidden", "class", false],
+      ["streams", "variable", true]
+    ],
+    "src/type-context.ts": [["Indirect", "class", true], ["ViaImport", "type", true]],
+    "src/types.ts": [],
+    "src/user-repository.ts": [["UserRepository", "class", true]],
+    "src/uses-default.ts": [["Derived", "class", true]]
+  },
+  "heritage": [
+    ["src/adapter.ts#Adapter", "implements", "Port", "src/contract.ts#Port"],
+    ["src/ambiguous.ts#Single", "implements", "Port", "src/contract.ts#Port"],
+    ["src/ambiguous.ts#Twin", "implements", "Dup", null, "ambiguous"],
+    ["src/boxed.ts#Boxed", "implements", "Box", "src/contract.ts#Shape"],
+    ["src/cyclic.ts#Kept", "implements", "Found", "src/cycle-b.ts#Found"],
+    ["src/cyclic.ts#Lost", "implements", "Nowhere", null, "missing"],
+    ["src/direct.ts#DirectAdapter", "implements", "Port", "src/contract.ts#Port"],
+    ["src/external.ts#Emitter", "extends", "EventEmitter", null, "external"],
+    ["src/external.ts#Failure", "extends", "Error", null, "external"],
+    ["src/external.ts#Mixed", "extends", "mix(Object)", null, "computed"],
+    ["src/external.ts#Qualified", "implements", "shapes.Readable", "src/shapes.ts#Readable"],
+    ["src/order-repository.ts#OrderRepository", "implements", "Repository", "src/repository.ts#Repository"],
+    ["src/shapes.ts#Stream", "extends", "Readable", "src/shapes.ts#Readable"],
+    ["src/streams.ts#AliasSource", "implements", "Source", "src/shapes.ts#Readable"],
+    ["src/streams.ts#FileStream", "implements", "Stream", "src/shapes.ts#Stream"],
+    ["src/streams.ts#Hidden", "implements", "Stream", "src/shapes.ts#Stream"],
+    ["src/type-context.ts#Indirect", "implements", "ViaImport", "src/type-context.ts#ViaImport"],
+    ["src/user-repository.ts#UserRepository", "extends", "Repo", "src/repository.ts#Repository"],
+    ["src/uses-default.ts#Derived", "extends", "Service", "src/default-class.ts#Service"]
+  ],
+  "excludedHeritage": [
+    ["src/contract.spec.ts#FakeClock", "implements", "Clock", "src/contract.ts#Clock"]
+  ]
+}

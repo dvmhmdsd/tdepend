@@ -1,0 +1,20 @@
+[
+  ["src/adapter.ts","src/types.ts",["type"],false],
+  ["src/ambiguous.ts","src/stars.ts",["type"],false],
+  ["src/boxed.ts","src/types.ts",["type"],false],
+  ["src/cycle-a.ts","src/cycle-b.ts",["re-export"],true],
+  ["src/cycle-b.ts","src/cycle-a.ts",["re-export"],true],
+  ["src/cyclic.ts","src/cycle-a.ts",["type"],false],
+  ["src/direct.ts","src/contract.ts",["type"],false],
+  ["src/external.ts","src/shapes.ts",["static"],false],
+  ["src/named-barrel.ts","src/repository.ts",["re-export"],true],
+  ["src/order-repository.ts","src/named-barrel.ts",["static"],false],
+  ["src/stars.ts","src/contract.ts",["re-export"],true],
+  ["src/stars.ts","src/dup-a.ts",["re-export"],true],
+  ["src/stars.ts","src/dup-b.ts",["re-export"],true],
+  ["src/streams.ts","src/shapes.ts",["type"],false],
+  ["src/type-context.ts","src/contract.ts",["type"],false],
+  ["src/types.ts","src/contract.ts",["type"],false],
+  ["src/user-repository.ts","src/named-barrel.ts",["static"],true],
+  ["src/uses-default.ts","src/default-class.ts",["static"],true]
+]
