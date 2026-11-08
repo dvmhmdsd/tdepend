@@ -72,8 +72,5 @@
     ["src/type-context.ts#Indirect", "implements", "ViaImport", "src/type-context.ts#ViaImport"],
     ["src/user-repository.ts#UserRepository", "extends", "Repo", "src/repository.ts#Repository"],
     ["src/uses-default.ts#Derived", "extends", "Service", "src/default-class.ts#Service"]
-  ],
-  "excludedHeritage": [
-    ["src/contract.spec.ts#FakeClock", "implements", "Clock", "src/contract.ts#Clock"]
   ]
 }

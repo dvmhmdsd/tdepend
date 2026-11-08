@@ -40,7 +40,6 @@ export interface SymbolIndex {
   declarations(file: string): Declaration[];
   exports(file: string): ExportInfo[];
   heritage(): HeritageRef[];
-  excludedHeritage(): HeritageRef[];
   resolveExport(file: string, name: string): Declaration | null;
   unresolvedHeritageCount: number;
 }

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 
+import { compareKeys, indexBy } from '../collections';
 import type { EdgeKind, ImportSite } from '../parser/types';
 
 export interface FileEdge {
@@ -46,20 +47,7 @@ export class FileGraph {
 }
 
 function compareEdges(a: FileEdge, b: FileEdge): number {
-  if (a.from !== b.from) return a.from < b.from ? -1 : 1;
-  if (a.to !== b.to) return a.to < b.to ? -1 : 1;
-  return 0;
-}
-
-function indexBy(edges: FileEdge[], key: (edge: FileEdge) => string): Map<string, FileEdge[]> {
-  const index = new Map<string, FileEdge[]>();
-  for (const edge of edges) {
-    const value = key(edge);
-    const list = index.get(value);
-    if (list === undefined) index.set(value, [edge]);
-    else list.push(edge);
-  }
-  return index;
+  return compareKeys([a.from, a.to], [b.from, b.to]);
 }
 
 // A site's contribution to the identity: the properties cycle filtering reads.
@@ -85,9 +73,7 @@ function hashEdges(edges: FileEdge[]): string {
 
 function siteSignatures(sites: ImportSite[]): SiteSignature[] {
   return sites
-    .map(
-      (site): SiteSignature => [site.kind, site.loadsTarget === true, site.deferred === true],
-    )
+    .map((site): SiteSignature => [site.kind, site.loadsTarget === true, site.deferred === true])
     .sort(compareSiteSignatures);
 }
 

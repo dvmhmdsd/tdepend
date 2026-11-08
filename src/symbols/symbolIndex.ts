@@ -1,6 +1,8 @@
+import { compareKeys } from '../collections';
+import type { SiteRecord } from '../graph/buildFileGraph';
 import type { FileGraph } from '../graph/fileGraph';
 import type { ImportSite, ParsedFile } from '../parser/types';
-import type { Resolver } from '../resolver/types';
+import type { Resolution } from '../resolver/types';
 import {
   collectFileSymbols,
   exportedNames,
@@ -19,12 +21,6 @@ export type {
   UnresolvedReason,
 } from './types';
 
-export interface SymbolIndexOptions {
-  // Files outside the analysis set (tests) whose classes are reported but never
-  // establish an implementation.
-  excluded?: Map<string, ParsedFile>;
-}
-
 type Entity =
   | { type: 'declaration'; declaration: Declaration }
   | { type: 'namespace'; file: string }
@@ -34,7 +30,6 @@ type SiteTarget = { file: string } | { unresolved: 'external' | 'missing' };
 
 interface FileTable {
   file: string;
-  parsed: ParsedFile;
   symbols: FileSymbols;
   declarations: Map<string, Declaration>;
 }
@@ -44,18 +39,17 @@ const unresolved = (reason: UnresolvedReason): Entity => ({ type: 'unresolved', 
 // A syntactic index of what each file declares and exports, with heritage
 // clauses resolved through imports and re-export chains. No type checker: a
 // name is followed only through explicit bindings, and whatever cannot be
-// followed is counted as unresolved, never guessed.
+// followed is counted as unresolved, never guessed. Imports are followed with
+// the resolutions the file graph already made, so both always agree.
 export function buildSymbolIndex(
   graph: FileGraph,
   parsed: Map<string, ParsedFile>,
-  resolver: Resolver,
-  options: SymbolIndexOptions = {},
+  sites: SiteRecord[],
 ): SymbolIndex {
   const tables = buildTables(graph.files(), parsed);
-  const excludedTables = buildTables([...(options.excluded?.keys() ?? [])], options.excluded);
-  const bindings = new BindingResolver(tables, resolver);
+  const resolutions = new Map(sites.map((record) => [record.site, record.resolution]));
+  const bindings = new BindingResolver(tables, resolutions);
   const heritage = resolveHeritage(tables, bindings);
-  const excludedHeritage = resolveHeritage(excludedTables, bindings);
   const exportCache = new Map<string, ExportInfo[]>();
 
   return {
@@ -69,19 +63,15 @@ export function buildSymbolIndex(
       return [...infos];
     },
     heritage: () => [...heritage],
-    excludedHeritage: () => [...excludedHeritage],
     resolveExport: (file, name) => declarationOf(bindings.resolveExport(file, name)),
     unresolvedHeritageCount: heritage.filter((ref) => ref.resolved === null).length,
   };
 }
 
-function buildTables(
-  files: string[],
-  parsed: Map<string, ParsedFile> | undefined,
-): Map<string, FileTable> {
+function buildTables(files: string[], parsed: Map<string, ParsedFile>): Map<string, FileTable> {
   const tables = new Map<string, FileTable>();
-  for (const file of [...files].sort()) {
-    const parsedFile = parsed?.get(file);
+  for (const file of files) {
+    const parsedFile = parsed.get(file);
     if (parsedFile === undefined) continue;
     const symbols = collectFileSymbols(parsedFile);
     const exported = exportedNames(symbols);
@@ -95,7 +85,7 @@ function buildTables(
         exported: exported.has(local.name) || local.kind === 'cjs-export',
       });
     }
-    tables.set(file, { file, parsed: parsedFile, symbols, declarations });
+    tables.set(file, { file, symbols, declarations });
   }
   return tables;
 }
@@ -136,12 +126,7 @@ function heritageRef(
 }
 
 function compareHeritage(a: HeritageRef, b: HeritageRef): number {
-  const left = [a.from.id, a.name, a.clause];
-  const right = [b.from.id, b.name, b.clause];
-  for (let i = 0; i < left.length; i++) {
-    if (left[i] !== right[i]) return left[i] < right[i] ? -1 : 1;
-  }
-  return 0;
+  return compareKeys([a.from.id, a.name, a.clause], [b.from.id, b.name, b.clause]);
 }
 
 // Resolves names to declarations across files. Export lookups are memoised; a
@@ -155,7 +140,7 @@ class BindingResolver {
 
   constructor(
     private readonly tables: Map<string, FileTable>,
-    private readonly resolver: Resolver,
+    private readonly resolutions: Map<ImportSite, Resolution>,
   ) {}
 
   resolveExport(file: string, name: string): Entity {
@@ -232,8 +217,7 @@ class BindingResolver {
     if (source?.type === 'local') {
       return this.resolveLocal(table, source.name) ?? unresolved('missing');
     }
-    if (source?.type === 'reexport')
-      return this.resolveBinding(table, source.site, source.imported);
+    if (source?.type === 'reexport') return this.resolveBinding(source.site, source.imported);
     if (name === 'default') return unresolved('missing');
     return this.lookupStar(table, name);
   }
@@ -244,7 +228,7 @@ class BindingResolver {
     let ambiguous = false;
     let external = false;
     for (const site of table.symbols.stars) {
-      const target = this.targetOf(table, site);
+      const target = this.targetOf(site);
       if ('unresolved' in target) {
         external ||= target.unresolved === 'external';
         continue;
@@ -265,11 +249,11 @@ class BindingResolver {
     if (declaration !== undefined) return { type: 'declaration', declaration };
     const binding = table.symbols.imports.get(name);
     if (binding === undefined) return null;
-    return this.resolveBinding(table, binding.site, binding.imported);
+    return this.resolveBinding(binding.site, binding.imported);
   }
 
-  private resolveBinding(table: FileTable, site: ImportSite, imported: string): Entity {
-    const target = this.targetOf(table, site);
+  private resolveBinding(site: ImportSite, imported: string): Entity {
+    const target = this.targetOf(site);
     if ('unresolved' in target) return unresolved(target.unresolved);
     if (imported === '*') return { type: 'namespace', file: target.file };
     return this.resolveExport(target.file, imported);
@@ -277,16 +261,16 @@ class BindingResolver {
 
   // Only files in the index are followed. An excluded target (a spec file) or a
   // failed resolution is missing; a package outside the workspace is external.
-  private targetOf(table: FileTable, site: ImportSite): SiteTarget {
+  private targetOf(site: ImportSite): SiteTarget {
     let target = this.targets.get(site);
     if (target !== undefined) return target;
 
-    const resolution = this.resolver.resolve(site, table.parsed);
+    const resolution = this.resolutions.get(site);
     const file =
-      resolution.target !== null && 'file' in resolution.target ? resolution.target.file : null;
-    const followable = resolution.class === 'internal' || resolution.class === 'workspace';
+      resolution?.target != null && 'file' in resolution.target ? resolution.target.file : null;
+    const followable = resolution?.class === 'internal' || resolution?.class === 'workspace';
     if (followable && file !== null && this.tables.has(file)) target = { file };
-    else if (resolution.class === 'external' || resolution.class === 'builtin') {
+    else if (resolution?.class === 'external' || resolution?.class === 'builtin') {
       target = { unresolved: 'external' };
     } else target = { unresolved: 'missing' };
 
@@ -298,7 +282,7 @@ class BindingResolver {
   private starProviders(table: FileTable, visiting: Set<string>): Map<string, string[]> {
     const providers = new Map<string, string[]>();
     for (const site of table.symbols.stars) {
-      const target = this.targetOf(table, site);
+      const target = this.targetOf(site);
       if ('unresolved' in target || visiting.has(target.file)) continue;
       for (const name of this.exportNames(target.file, visiting)) {
         if (name === 'default') continue;
