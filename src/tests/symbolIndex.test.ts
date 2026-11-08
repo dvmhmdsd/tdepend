@@ -2,8 +2,6 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { parseFile } from '../parser/extractSites';
-import type { ParsedFile } from '../parser/types';
 import { buildSymbolIndex, type HeritageRef } from '../symbols/symbolIndex';
 import { FIXTURES, buildFixtureParts } from './helpers/fixtureGraph';
 
@@ -13,7 +11,6 @@ type HeritageRow = [string, string, string, string | null, string?];
 interface ExpectedSymbols {
   declarations: Record<string, DeclarationRow[]>;
   heritage: HeritageRow[];
-  excludedHeritage: HeritageRow[];
 }
 
 const ROOT = join(FIXTURES, 'heritage');
@@ -23,15 +20,7 @@ const expected = JSON.parse(
 
 function buildHeritage() {
   const parts = buildFixtureParts('heritage');
-  const excluded = new Map<string, ParsedFile>();
-  for (const { file, reason } of parts.files.skipped) {
-    if (reason !== 'excluded') continue;
-    const absolute = join(ROOT, file);
-    const options = parts.ctx.optionsFor(file).options;
-    excluded.set(file, parseFile(file, readFileSync(absolute, 'utf-8'), options, absolute));
-  }
-  const index = buildSymbolIndex(parts.graph, parts.parsed, parts.resolver, { excluded });
-  return { ...parts, index };
+  return { ...parts, index: buildSymbolIndex(parts.graph, parts.parsed, parts.sites) };
 }
 
 const { index, sites, graph } = buildHeritage();
@@ -75,7 +64,9 @@ describe('symbol index: declarations', () => {
   it('a class in an excluded file is not in the index', () => {
     expect(index.declarations('src/contract.spec.ts')).toEqual([]);
     expect(index.heritage().some((ref) => ref.from.file === 'src/contract.spec.ts')).toBe(false);
-    expect(index.excludedHeritage().map(row)).toEqual(expected.excludedHeritage);
+    expect(index.heritage().some((ref) => ref.resolved?.id === 'src/contract.ts#Clock')).toBe(
+      false,
+    );
   });
 });
 

@@ -1,3 +1,4 @@
+import { compareKeys, indexBy } from '../collections';
 import type { SiteRecord } from '../graph/buildFileGraph';
 import type { FileGraph } from '../graph/fileGraph';
 import type { ImportSite } from '../parser/types';
@@ -58,18 +59,5 @@ function groupLookup(
 }
 
 function compareGroupEdges(a: GroupEdge, b: GroupEdge): number {
-  if (a.from.id !== b.from.id) return a.from.id < b.from.id ? -1 : 1;
-  if (a.to.id !== b.to.id) return a.to.id < b.to.id ? -1 : 1;
-  return 0;
-}
-
-function indexBy(edges: GroupEdge[], key: (edge: GroupEdge) => string): Map<string, GroupEdge[]> {
-  const index = new Map<string, GroupEdge[]>();
-  for (const edge of edges) {
-    const value = key(edge);
-    const list = index.get(value);
-    if (list === undefined) index.set(value, [edge]);
-    else list.push(edge);
-  }
-  return index;
+  return compareKeys([a.from.id, a.to.id], [b.from.id, b.to.id]);
 }

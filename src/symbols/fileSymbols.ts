@@ -1,5 +1,6 @@
 import * as ts from 'typescript';
 
+import { collectBindingNames, hasModifier } from '../parser/syntax';
 import type { ImportSite, ParsedFile } from '../parser/types';
 import type { DeclKind, HeritageClause } from './types';
 
@@ -61,10 +62,24 @@ export function collectFileSymbols(parsed: ParsedFile): FileSymbols {
     stars: [],
     heritage: [],
   };
-  const siteAt = new Map<ts.Node, ImportSite>(parsed.sites.map((site) => [site.node, site]));
-  const visitor = new StatementVisitor(parsed.sourceFile, symbols, siteAt);
+  for (const site of parsed.sites) addSiteBindings(symbols, site);
+  const visitor = new StatementVisitor(parsed.sourceFile, symbols);
   for (const statement of parsed.sourceFile.statements) visitor.visit(statement);
   return symbols;
+}
+
+// Import and re-export declarations reuse the bindings the parser already read
+// into each site. A re-export binding's `local` is the name it is exported as.
+function addSiteBindings(symbols: FileSymbols, site: ImportSite): void {
+  const declaration = site.node.parent;
+  if (ts.isImportDeclaration(declaration)) {
+    for (const { local, imported } of site.bindings) symbols.imports.set(local, { site, imported });
+  } else if (ts.isExportDeclaration(declaration)) {
+    if (declaration.exportClause === undefined) symbols.stars.push(site);
+    for (const { local, imported } of site.bindings) {
+      symbols.exports.set(local, { type: 'reexport', site, imported });
+    }
+  }
 }
 
 export function exportedNames(symbols: FileSymbols): Set<string> {
@@ -79,12 +94,10 @@ class StatementVisitor {
   constructor(
     private readonly sourceFile: ts.SourceFile,
     private readonly symbols: FileSymbols,
-    private readonly siteAt: Map<ts.Node, ImportSite>,
   ) {}
 
   visit(statement: ts.Statement): void {
-    if (ts.isImportDeclaration(statement)) this.importDeclaration(statement);
-    else if (ts.isExportDeclaration(statement)) this.exportDeclaration(statement);
+    if (ts.isExportDeclaration(statement)) this.localExportList(statement);
     else if (ts.isExportAssignment(statement)) this.exportAssignment(statement);
     else if (ts.isClassDeclaration(statement) || ts.isInterfaceDeclaration(statement)) {
       this.heritageOwner(statement);
@@ -101,47 +114,17 @@ class StatementVisitor {
     else if (ts.isExpressionStatement(statement)) this.commonJsExports(statement);
   }
 
-  private importDeclaration(decl: ts.ImportDeclaration): void {
-    const site = this.siteAt.get(decl.moduleSpecifier);
-    const clause = decl.importClause;
-    if (site === undefined || clause === undefined) return;
-
-    if (clause.name !== undefined) this.bindImport(clause.name.text, site, 'default');
-    const named = clause.namedBindings;
-    if (named === undefined) return;
-    if (ts.isNamespaceImport(named)) {
-      this.bindImport(named.name.text, site, '*');
-      return;
-    }
-    for (const element of named.elements) {
-      this.bindImport(element.name.text, site, (element.propertyName ?? element.name).text);
-    }
-  }
-
-  private exportDeclaration(decl: ts.ExportDeclaration): void {
+  // `export { a, b as c }` with no `from`: names this file already has.
+  private localExportList(decl: ts.ExportDeclaration): void {
     const clause = decl.exportClause;
-    if (decl.moduleSpecifier === undefined) {
-      if (clause === undefined || !ts.isNamedExports(clause)) return;
-      for (const element of clause.elements) {
-        this.symbols.exports.set(element.name.text, {
-          type: 'local',
-          name: (element.propertyName ?? element.name).text,
-        });
-      }
+    if (decl.moduleSpecifier !== undefined || clause === undefined || !ts.isNamedExports(clause)) {
       return;
     }
-
-    const site = this.siteAt.get(decl.moduleSpecifier);
-    if (site === undefined) return;
-    if (clause === undefined) {
-      this.symbols.stars.push(site);
-    } else if (ts.isNamespaceExport(clause)) {
-      this.symbols.exports.set(clause.name.text, { type: 'reexport', site, imported: '*' });
-    } else {
-      for (const element of clause.elements) {
-        const imported = (element.propertyName ?? element.name).text;
-        this.symbols.exports.set(element.name.text, { type: 'reexport', site, imported });
-      }
+    for (const element of clause.elements) {
+      this.symbols.exports.set(element.name.text, {
+        type: 'local',
+        name: (element.propertyName ?? element.name).text,
+      });
     }
   }
 
@@ -169,7 +152,9 @@ class StatementVisitor {
 
   private variableStatement(statement: ts.VariableStatement): void {
     for (const declarator of statement.declarationList.declarations) {
-      for (const name of bindingNames(declarator.name)) {
+      const names = new Set<string>();
+      collectBindingNames(declarator.name, names);
+      for (const name of names) {
         const initializer = declarator.initializer;
         const isAsyncFunction =
           initializer !== undefined &&
@@ -241,21 +226,6 @@ class StatementVisitor {
     // A merged name is no longer a plain alias of one other name.
     delete existing.aliasOf;
   }
-
-  private bindImport(local: string, site: ImportSite, imported: string): void {
-    this.symbols.imports.set(local, { site, imported });
-  }
-}
-
-function hasModifier(node: ts.Node, kind: ts.SyntaxKind): boolean {
-  return ts.canHaveModifiers(node) && (ts.getModifiers(node) ?? []).some((m) => m.kind === kind);
-}
-
-function bindingNames(name: ts.BindingName): string[] {
-  if (ts.isIdentifier(name)) return [name.text];
-  return name.elements.flatMap((element) =>
-    ts.isOmittedExpression(element) ? [] : bindingNames(element.name),
-  );
 }
 
 function typeReferencePath(type: ts.TypeNode): string[] | undefined {

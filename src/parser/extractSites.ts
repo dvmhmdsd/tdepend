@@ -1,5 +1,6 @@
 import * as ts from 'typescript';
 
+import { collectBindingNames, hasModifier } from './syntax';
 import type { EdgeKind, ImportBinding, ImportSite, ParsedFile } from './types';
 
 type DraftSite = Omit<ImportSite, 'line' | 'column'>;
@@ -320,15 +321,7 @@ function isInstanceInitializer(node: ts.Node, child: ts.Node): boolean {
     ts.isPropertyDeclaration(node) &&
     node.initializer !== undefined &&
     containsNode(node.initializer, child) &&
-    !isStaticModifier(node)
-  );
-}
-
-function isStaticModifier(node: ts.Node): boolean {
-  return (
-    ts.canHaveModifiers(node) &&
-    (ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.StaticKeyword) ??
-      false)
+    !hasModifier(node, ts.SyntaxKind.StaticKeyword)
   );
 }
 
@@ -694,13 +687,6 @@ function qualifiedNamespaceName(node: ts.ModuleDeclaration): string {
   return parts.join('.');
 }
 
-function hasModifier(node: ts.Node, kind: ts.SyntaxKind): boolean {
-  return (
-    ts.canHaveModifiers(node) &&
-    (ts.getModifiers(node)?.some((modifier) => modifier.kind === kind) ?? false)
-  );
-}
-
 function isPlainFunction(node: ts.FunctionDeclaration): boolean {
   return node.asteriskToken === undefined && !hasModifier(node, ts.SyntaxKind.AsyncKeyword);
 }
@@ -725,16 +711,6 @@ function isVarBoundary(node: ts.Node): boolean {
     ts.isClassStaticBlockDeclaration(node) ||
     (ts.isBlock(node) && isFunctionBody(node))
   );
-}
-
-function collectBindingNames(name: ts.BindingName, out: Set<string>): void {
-  if (ts.isIdentifier(name)) {
-    out.add(name.text);
-    return;
-  }
-  for (const element of name.elements) {
-    if (ts.isBindingElement(element)) collectBindingNames(element.name, out);
-  }
 }
 
 function addImportBindings(decl: ts.ImportDeclaration, scope: ValueScope): void {
