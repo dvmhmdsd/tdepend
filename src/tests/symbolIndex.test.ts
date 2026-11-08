@@ -76,6 +76,12 @@ describe('symbol index: heritage', () => {
     expect(index.unresolvedHeritageCount).toBe(5);
   });
 
+  it('records whether a class or an interface owns each reference', () => {
+    expect(refsFrom('src/ancestry.ts#Branch')[0].owner).toBe('interface');
+    expect(refsFrom('src/ancestry.ts#Leaf')[0].owner).toBe('class');
+    expect(refsFrom('src/user-repository.ts#UserRepository')[0].owner).toBe('class');
+  });
+
   it('implements through a named re-export barrel resolves', () => {
     expect(refsFrom('src/order-repository.ts#OrderRepository')[0].resolved?.id).toBe(
       'src/repository.ts#Repository',

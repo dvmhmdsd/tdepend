@@ -33,6 +33,10 @@ export function buildGroupGraph(
     edge.runtime ||= fileEdge.runtime;
   }
 
+  const members = indexBy(
+    graph.files().filter((file) => groupOf(file) !== undefined),
+    (file) => groupOf(file)!.id,
+  );
   const edges = [...merged.values()].sort(compareGroupEdges);
   const fromIndex = indexBy(edges, (edge) => edge.from.id);
   const toIndex = indexBy(edges, (edge) => edge.to.id);
@@ -43,6 +47,7 @@ export function buildGroupGraph(
     edges,
     edgesFrom: (group) => [...(fromIndex.get(group.id) ?? [])],
     edgesTo: (group) => [...(toIndex.get(group.id) ?? [])],
+    filesOf: (group) => [...(members.get(group.id) ?? [])],
   };
 }
 

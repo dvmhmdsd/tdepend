@@ -24,6 +24,7 @@ export type ExportSource =
 
 export interface HeritageEntry {
   from: string;
+  owner: 'class' | 'interface';
   clause: HeritageClause;
   name: string;
   // The dotted name the clause references, or null for anything else (a call).
@@ -147,7 +148,11 @@ class StatementVisitor {
         ? 'abstract-class'
         : 'class';
     this.declare(node, name, kind);
-    this.collectHeritage(name, node.heritageClauses);
+    this.collectHeritage(
+      name,
+      ts.isInterfaceDeclaration(node) ? 'interface' : 'class',
+      node.heritageClauses,
+    );
   }
 
   private variableStatement(statement: ts.VariableStatement): void {
@@ -162,7 +167,7 @@ class StatementVisitor {
           hasModifier(initializer, ts.SyntaxKind.AsyncKeyword);
         this.declare(statement, name, 'variable', { isAsyncFunction });
         if (initializer !== undefined && ts.isClassExpression(initializer)) {
-          this.collectHeritage(name, initializer.heritageClauses);
+          this.collectHeritage(name, 'class', initializer.heritageClauses);
         }
       }
     }
@@ -177,6 +182,7 @@ class StatementVisitor {
 
   private collectHeritage(
     from: string,
+    owner: HeritageEntry['owner'],
     clauses: ts.NodeArray<ts.HeritageClause> | undefined,
   ): void {
     for (const clause of clauses ?? []) {
@@ -185,6 +191,7 @@ class StatementVisitor {
       for (const type of clause.types) {
         this.symbols.heritage.push({
           from,
+          owner,
           clause: kind,
           name: type.expression.getText(this.sourceFile),
           path: expressionPath(type.expression),

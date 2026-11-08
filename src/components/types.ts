@@ -43,4 +43,5 @@ export interface GroupGraph {
   edges: GroupEdge[];
   edgesFrom(group: Group): GroupEdge[];
   edgesTo(group: Group): GroupEdge[];
+  filesOf(group: Group): string[];
 }
