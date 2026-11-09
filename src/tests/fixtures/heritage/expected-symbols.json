@@ -1,58 +1,129 @@
 {
   "declarations": {
-    "src/adapter.ts": [["Adapter", "class", true]],
-    "src/alias-target.ts": [["Target", "interface", true], ["TargetAlias", "type", true], ["ViaAlias", "class", true]],
-    "src/ambiguous.ts": [["Single", "class", true], ["Twin", "class", true]],
-    "src/ancestry.ts": [["Branch", "interface", true], ["Leaf", "class", true], ["Root", "interface", true]],
-    "src/boxed.ts": [["Boxed", "class", true]],
-    "src/contract.ts": [["Clock", "interface", true], ["Port", "interface", true], ["Shape", "interface", true]],
+    "src/adapter.ts": [
+      ["Adapter", "class", true, false]
+    ],
+    "src/alias-target.ts": [
+      ["Target", "interface", true, false],
+      ["TargetAlias", "type", true, true],
+      ["ViaAlias", "class", true, false]
+    ],
+    "src/ambiguous.ts": [
+      ["Single", "class", true, false],
+      ["Twin", "class", true, true]
+    ],
+    "src/ancestry.ts": [
+      ["Branch", "interface", true, true],
+      ["Leaf", "class", true, true],
+      ["Root", "interface", true, true]
+    ],
+    "src/boxed.ts": [
+      ["Boxed", "class", true, true]
+    ],
+    "src/contract.ts": [
+      ["Clock", "interface", true, false],
+      ["Port", "interface", true, false],
+      ["Shape", "interface", true, true]
+    ],
     "src/cycle-a.ts": [],
-    "src/cycle-b.ts": [["Found", "interface", true]],
-    "src/cyclic.ts": [["Kept", "class", true], ["Lost", "class", true]],
-    "src/default-class.ts": [["Service", "class", true]],
-    "src/default-expression.ts": [["default", "default-expression", true]],
-    "src/direct.ts": [["DirectAdapter", "class", true]],
-    "src/dup-a.ts": [["Dup", "interface", true]],
-    "src/dup-b.ts": [["Dup", "interface", true]],
+    "src/cycle-b.ts": [
+      ["Found", "interface", true, true]
+    ],
+    "src/cyclic.ts": [
+      ["Kept", "class", true, true],
+      ["Lost", "class", true, false]
+    ],
+    "src/data-shapes.ts": [
+      ["ArchivedItemDto", "class", true, true],
+      ["Callback", "type", true, false],
+      ["CreateItemDto", "class", true, true],
+      ["Handler", "interface", true, false],
+      ["ItemError", "class", true, false],
+      ["ItemModule", "class", true, false],
+      ["ItemView", "class", true, false],
+      ["Mode", "type", true, true],
+      ["Payload", "type", true, true],
+      ["Priced", "class", true, false],
+      ["Status", "enum", true, true],
+      ["UpdateItemDto", "class", true, false],
+      ["partial", "function", false, false]
+    ],
+    "src/default-class.ts": [
+      ["Service", "class", true, false]
+    ],
+    "src/default-expression.ts": [
+      ["default", "default-expression", true, false]
+    ],
+    "src/direct.ts": [
+      ["DirectAdapter", "class", true, false]
+    ],
+    "src/dup-a.ts": [
+      ["Dup", "interface", true, true]
+    ],
+    "src/dup-b.ts": [
+      ["Dup", "interface", true, true]
+    ],
     "src/external.ts": [
-      ["Emitter", "class", true],
-      ["Failure", "class", true],
-      ["Mixed", "class", true],
-      ["Qualified", "class", true],
-      ["mix", "function", false]
+      ["Emitter", "class", true, false],
+      ["Failure", "class", true, false],
+      ["Mixed", "class", true, false],
+      ["Qualified", "class", true, false],
+      ["mix", "function", false, false]
     ],
     "src/functions.ts": [
-      ["fetchAll", "variable", true],
-      ["fetchOne", "variable", true],
-      ["format", "function", true],
-      ["helper", "variable", true],
-      ["internal", "function", true],
-      ["load", "function", true],
-      ["sync", "variable", true]
+      ["fetchAll", "variable", true, false],
+      ["fetchOne", "variable", true, false],
+      ["format", "function", true, false],
+      ["helper", "variable", true, false],
+      ["internal", "function", true, false],
+      ["load", "function", true, false],
+      ["sync", "variable", true, false]
     ],
-    "src/legacy-object.js": [["name", "cjs-export", true], ["start", "cjs-export", true], ["stop", "cjs-export", true]],
-    "src/legacy.js": [["helper", "cjs-export", true], ["version", "cjs-export", true]],
-    "src/merging.ts": [["Merged", "interface", true], ["Schema", "type", true], ["Twice", "interface", true]],
+    "src/legacy-object.js": [
+      ["name", "cjs-export", true, false],
+      ["start", "cjs-export", true, false],
+      ["stop", "cjs-export", true, false]
+    ],
+    "src/legacy.js": [
+      ["helper", "cjs-export", true, false],
+      ["version", "cjs-export", true, false]
+    ],
+    "src/merging.ts": [
+      ["Merged", "interface", true, true],
+      ["Schema", "type", true, false],
+      ["Twice", "interface", true, true]
+    ],
     "src/named-barrel.ts": [],
-    "src/order-repository.ts": [["OrderRepository", "class", true]],
-    "src/repository.ts": [["Repository", "abstract-class", true]],
+    "src/order-repository.ts": [
+      ["OrderRepository", "class", true, false]
+    ],
+    "src/repository.ts": [
+      ["Repository", "abstract-class", true, false]
+    ],
     "src/shapes.ts": [
-      ["Pair", "type", true],
-      ["Readable", "interface", true],
-      ["Source", "type", true],
-      ["Stream", "interface", true]
+      ["Pair", "type", true, true],
+      ["Readable", "interface", true, false],
+      ["Source", "type", true, true],
+      ["Stream", "interface", true, false]
     ],
     "src/stars.ts": [],
     "src/streams.ts": [
-      ["AliasSource", "class", true],
-      ["FileStream", "class", true],
-      ["Hidden", "class", false],
-      ["streams", "variable", true]
+      ["AliasSource", "class", true, false],
+      ["FileStream", "class", true, false],
+      ["Hidden", "class", false, false],
+      ["streams", "variable", true, false]
     ],
-    "src/type-context.ts": [["Indirect", "class", true], ["ViaImport", "type", true]],
+    "src/type-context.ts": [
+      ["Indirect", "class", true, false],
+      ["ViaImport", "type", true, true]
+    ],
     "src/types.ts": [],
-    "src/user-repository.ts": [["UserRepository", "class", true]],
-    "src/uses-default.ts": [["Derived", "class", true]]
+    "src/user-repository.ts": [
+      ["UserRepository", "class", true, false]
+    ],
+    "src/uses-default.ts": [
+      ["Derived", "class", true, false]
+    ]
   },
   "heritage": [
     ["src/adapter.ts#Adapter", "implements", "Port", "src/contract.ts#Port"],
@@ -64,6 +135,9 @@
     ["src/boxed.ts#Boxed", "implements", "Box", "src/contract.ts#Shape"],
     ["src/cyclic.ts#Kept", "implements", "Found", "src/cycle-b.ts#Found"],
     ["src/cyclic.ts#Lost", "implements", "Nowhere", null, "missing"],
+    ["src/data-shapes.ts#ArchivedItemDto", "extends", "CreateItemDto", "src/data-shapes.ts#CreateItemDto"],
+    ["src/data-shapes.ts#ItemError", "extends", "Error", null, "external"],
+    ["src/data-shapes.ts#UpdateItemDto", "extends", "partial(CreateItemDto)", null, "computed"],
     ["src/direct.ts#DirectAdapter", "implements", "Port", "src/contract.ts#Port"],
     ["src/external.ts#Emitter", "extends", "EventEmitter", null, "external"],
     ["src/external.ts#Failure", "extends", "Error", null, "external"],

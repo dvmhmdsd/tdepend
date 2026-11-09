@@ -8,6 +8,10 @@ export interface LocalDeclaration {
   name: string;
   kind: DeclKind;
   isAsyncFunction: boolean;
+  // Fields and no behaviour, judged on this file's syntax alone. A class or
+  // interface that extends something is data only if its bases are too, which
+  // the index decides once names are resolved.
+  dataShape: boolean;
   // `type T = X` or `type T = ns.X`: the name the alias stands for, split on dots.
   aliasOf?: string[];
 }
@@ -43,6 +47,12 @@ export interface FileSymbols {
 // When one name has several declarations (merging, or a type and a value with
 // the same name), the identity takes the kind that can be abstract, so merging
 // is "abstract only through the interface rule".
+interface DeclarationExtra {
+  isAsyncFunction?: boolean;
+  aliasOf?: string[];
+  dataShape?: boolean;
+}
+
 const KIND_PRECEDENCE: DeclKind[] = [
   'interface',
   'abstract-class',
@@ -105,10 +115,11 @@ class StatementVisitor {
     } else if (ts.isTypeAliasDeclaration(statement)) {
       this.declare(statement, statement.name.text, 'type', {
         aliasOf: typeReferencePath(statement.type),
+        dataShape: isDataType(statement.type),
       });
-    } else if (ts.isEnumDeclaration(statement))
-      this.declare(statement, statement.name.text, 'enum');
-    else if (ts.isFunctionDeclaration(statement)) {
+    } else if (ts.isEnumDeclaration(statement)) {
+      this.declare(statement, statement.name.text, 'enum', { dataShape: true });
+    } else if (ts.isFunctionDeclaration(statement)) {
       const isAsyncFunction = hasModifier(statement, ts.SyntaxKind.AsyncKeyword);
       this.declare(statement, statement.name?.text ?? 'default', 'function', { isAsyncFunction });
     } else if (ts.isVariableStatement(statement)) this.variableStatement(statement);
@@ -147,7 +158,8 @@ class StatementVisitor {
       : hasModifier(node, ts.SyntaxKind.AbstractKeyword)
         ? 'abstract-class'
         : 'class';
-    this.declare(node, name, kind);
+    const dataShape = ts.isInterfaceDeclaration(node) ? isDataInterface(node) : isDataClass(node);
+    this.declare(node, name, kind, { dataShape });
     this.collectHeritage(
       name,
       ts.isInterfaceDeclaration(node) ? 'interface' : 'class',
@@ -200,29 +212,21 @@ class StatementVisitor {
     }
   }
 
-  private declare(
-    node: ts.Node,
-    name: string,
-    kind: DeclKind,
-    extra: { isAsyncFunction?: boolean; aliasOf?: string[] } = {},
-  ): void {
+  private declare(node: ts.Node, name: string, kind: DeclKind, extra: DeclarationExtra = {}): void {
     this.addDeclaration(name, kind, extra);
     if (!hasModifier(node, ts.SyntaxKind.ExportKeyword)) return;
     const exportedAs = hasModifier(node, ts.SyntaxKind.DefaultKeyword) ? 'default' : name;
     this.symbols.exports.set(exportedAs, { type: 'local', name });
   }
 
-  private addDeclaration(
-    name: string,
-    kind: DeclKind,
-    extra: { isAsyncFunction?: boolean; aliasOf?: string[] } = {},
-  ): void {
+  private addDeclaration(name: string, kind: DeclKind, extra: DeclarationExtra = {}): void {
     const existing = this.symbols.declarations.get(name);
     if (existing === undefined) {
       this.symbols.declarations.set(name, {
         name,
         kind,
         isAsyncFunction: extra.isAsyncFunction === true,
+        dataShape: extra.dataShape === true,
         ...(extra.aliasOf === undefined ? {} : { aliasOf: extra.aliasOf }),
       });
       return;
@@ -230,9 +234,61 @@ class StatementVisitor {
     if (KIND_PRECEDENCE.indexOf(kind) < KIND_PRECEDENCE.indexOf(existing.kind))
       existing.kind = kind;
     existing.isAsyncFunction ||= extra.isAsyncFunction === true;
+    existing.dataShape &&= extra.dataShape === true;
     // A merged name is no longer a plain alias of one other name.
     delete existing.aliasOf;
   }
+}
+
+function isFunctionType(type: ts.TypeNode | undefined): boolean {
+  return type !== undefined && (ts.isFunctionTypeNode(type) || ts.isConstructorTypeNode(type));
+}
+
+function isDataMember(member: ts.TypeElement): boolean {
+  return (
+    (ts.isPropertySignature(member) && !isFunctionType(member.type)) ||
+    ts.isIndexSignatureDeclaration(member)
+  );
+}
+
+function hasExtends(node: ts.ClassLikeDeclaration | ts.InterfaceDeclaration): boolean {
+  return (node.heritageClauses ?? []).some(
+    (clause) => clause.token === ts.SyntaxKind.ExtendsKeyword,
+  );
+}
+
+// An empty interface or class is a marker (a Nest module, say) unless it
+// extends something, in which case it has whatever shape its base has.
+function isDataInterface(node: ts.InterfaceDeclaration): boolean {
+  return (node.members.length > 0 || hasExtends(node)) && node.members.every(isDataMember);
+}
+
+function isDataType(type: ts.TypeNode): boolean {
+  if (isFunctionType(type)) return false;
+  if (!ts.isTypeLiteralNode(type)) return true;
+  return type.members.length > 0 && type.members.every(isDataMember);
+}
+
+function isDataClass(node: ts.ClassDeclaration): boolean {
+  let fields = 0;
+  for (const member of node.members) {
+    if (ts.isPropertyDeclaration(member)) {
+      const initializer = member.initializer;
+      const holdsFunction =
+        isFunctionType(member.type) ||
+        (initializer !== undefined &&
+          (ts.isArrowFunction(initializer) || ts.isFunctionExpression(initializer)));
+      if (holdsFunction) return false;
+      fields++;
+    } else if (
+      !ts.isConstructorDeclaration(member) &&
+      !ts.isSemicolonClassElement(member) &&
+      !ts.isIndexSignatureDeclaration(member)
+    ) {
+      return false;
+    }
+  }
+  return fields > 0 || hasExtends(node);
 }
 
 function typeReferencePath(type: ts.TypeNode): string[] | undefined {

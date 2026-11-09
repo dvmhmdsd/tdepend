@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { buildSymbolIndex, type HeritageRef } from '../symbols/symbolIndex';
 import { FIXTURES, buildFixtureParts } from './helpers/fixtureGraph';
 
-type DeclarationRow = [string, string, boolean];
+type DeclarationRow = [string, string, boolean, boolean];
 type HeritageRow = [string, string, string, string | null, string?];
 
 interface ExpectedSymbols {
@@ -42,7 +42,9 @@ describe('symbol index: declarations', () => {
         .files()
         .map((file) => [
           file,
-          index.declarations(file).map((d): DeclarationRow => [d.name, d.kind, d.exported]),
+          index
+            .declarations(file)
+            .map((d): DeclarationRow => [d.name, d.kind, d.exported, d.dataShape]),
         ]),
     );
 
@@ -58,6 +60,7 @@ describe('symbol index: declarations', () => {
       name: 'format',
       kind: 'function',
       exported: true,
+      dataShape: false,
     });
   });
 
@@ -70,10 +73,58 @@ describe('symbol index: declarations', () => {
   });
 });
 
+describe('symbol index: data shape', () => {
+  const dataShape = (name: string): boolean | undefined =>
+    index.declarations('src/data-shapes.ts').find((d) => d.name === name)?.dataShape;
+
+  it('fields, enums and plain types are data; functions, getters and function-typed fields are not', () => {
+    expect(['Status', 'Mode', 'Payload', 'CreateItemDto'].map(dataShape)).toEqual([
+      true,
+      true,
+      true,
+      true,
+    ]);
+    expect(['Handler', 'Callback', 'ItemView', 'Priced'].map(dataShape)).toEqual([
+      false,
+      false,
+      false,
+      false,
+    ]);
+  });
+
+  it('an empty class is data only when it extends a data declaration; a class with an external or computed base is not', () => {
+    expect(dataShape('ArchivedItemDto')).toBe(true);
+    expect(dataShape('ItemModule')).toBe(false);
+    expect(dataShape('UpdateItemDto')).toBe(false);
+    expect(dataShape('ItemError')).toBe(false);
+    expect(
+      index.declarations('src/uses-default.ts').find((d) => d.name === 'Derived')?.dataShape,
+    ).toBe(false);
+  });
+
+  it('an interface is data only when everything it extends is data', () => {
+    const shapes = Object.fromEntries(
+      index.declarations('src/ancestry.ts').map((d) => [d.name, d.dataShape]),
+    );
+    const stream = index.declarations('src/shapes.ts').find((d) => d.name === 'Stream');
+
+    expect(shapes).toEqual({ Branch: true, Leaf: true, Root: true });
+    expect(stream?.dataShape).toBe(false);
+  });
+
+  it('merged declarations are data only when every part is', () => {
+    const merged = Object.fromEntries(
+      index.declarations('src/merging.ts').map((d) => [d.name, d.dataShape]),
+    );
+
+    expect(merged).toEqual({ Merged: true, Schema: false, Twice: true });
+  });
+});
+
 describe('symbol index: heritage', () => {
   it('heritage fixture: every reference resolves as expected-symbols.json says', () => {
     expect(index.heritage().map(row)).toEqual(expected.heritage);
-    expect(index.unresolvedHeritageCount).toBe(5);
+    expect(index.unresolvedHeritageCount).toBe(7);
   });
 
   it('records whether a class or an interface owns each reference', () => {

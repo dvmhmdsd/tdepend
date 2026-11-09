@@ -1,4 +1,4 @@
-import { compareKeys } from '../collections';
+import { compareKeys, indexBy } from '../collections';
 import type { SiteRecord } from '../graph/buildFileGraph';
 import type { FileGraph } from '../graph/fileGraph';
 import type { ImportSite, ParsedFile } from '../parser/types';
@@ -50,6 +50,7 @@ export function buildSymbolIndex(
   const resolutions = new Map(sites.map((record) => [record.site, record.resolution]));
   const bindings = new BindingResolver(tables, resolutions);
   const heritage = resolveHeritage(tables, bindings);
+  resolveDataShapes(tables, heritage);
   const exportCache = new Map<string, ExportInfo[]>();
 
   return {
@@ -83,6 +84,7 @@ function buildTables(files: string[], parsed: Map<string, ParsedFile>): Map<stri
         name: local.name,
         kind: local.kind,
         exported: exported.has(local.name) || local.kind === 'cjs-export',
+        dataShape: false,
       });
     }
     tables.set(file, { file, symbols, declarations });
@@ -129,6 +131,41 @@ function heritageRef(
   if (entity.type === 'declaration') ref.resolved = entity.declaration;
   else ref.unresolvedReason = entity.type === 'namespace' ? 'missing' : entity.reason;
   return ref;
+}
+
+// A declaration is data when its own syntax is and every base it extends is
+// data too: `class NotFound extends HttpException {}` is not, because its base
+// is external and may hold behaviour. A base that cannot be resolved, or a
+// cycle of bases, is not data.
+function resolveDataShapes(tables: Map<string, FileTable>, heritage: HeritageRef[]): void {
+  const basesOf = indexBy(
+    heritage.filter((ref) => ref.clause === 'extends'),
+    (ref) => ref.from.id,
+  );
+  const verdicts = new Map<string, boolean>();
+  const visiting = new Set<string>();
+
+  const isData = (declaration: Declaration): boolean => {
+    const known = verdicts.get(declaration.id);
+    if (known !== undefined) return known;
+    if (visiting.has(declaration.id)) return false;
+    visiting.add(declaration.id);
+    const local = tables.get(declaration.file)!.symbols.declarations.get(declaration.name)!;
+    const verdict =
+      local.dataShape &&
+      (basesOf.get(declaration.id) ?? []).every(
+        (ref) => ref.resolved !== null && isData(ref.resolved),
+      );
+    visiting.delete(declaration.id);
+    verdicts.set(declaration.id, verdict);
+    return verdict;
+  };
+
+  for (const table of tables.values()) {
+    for (const declaration of table.declarations.values()) {
+      declaration.dataShape = isData(declaration);
+    }
+  }
 }
 
 function compareHeritage(a: HeritageRef, b: HeritageRef): number {

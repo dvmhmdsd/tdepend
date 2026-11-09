@@ -15,6 +15,7 @@ export interface Declaration {
   name: string;
   kind: DeclKind;
   exported: boolean;
+  dataShape: boolean;
 }
 
 export type UnresolvedReason = 'ambiguous' | 'external' | 'missing' | 'computed';
