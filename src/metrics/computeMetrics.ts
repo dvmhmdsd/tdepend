@@ -16,6 +16,7 @@ export interface Metrics {
   distance: number | null;
   exported: number;
   abstract: number;
+  data: number;
   unresolvedHeritage: number;
 }
 
@@ -29,6 +30,7 @@ export interface MetricsByLevel {
 interface DeclarationCounts {
   exported: number;
   abstract: number;
+  data: number;
   unresolvedHeritage: number;
 }
 
@@ -42,7 +44,7 @@ export function computeMetrics(
   index: SymbolIndex,
   mode: AbstractnessMode,
 ): MetricsByLevel {
-  const countsOf = declarationCounter(index, abstractnessRule(index, mode));
+  const countsOf = declarationCounter(index, roleRule(index, mode));
 
   const file = graph.files().map((path) => {
     const Ca = new Set(graph.edgesTo(path).map((edge) => edge.from)).size;
@@ -76,7 +78,9 @@ function metricsOf(
   counts: DeclarationCounts,
 ): Metrics {
   const instability = Ca + Ce === 0 ? null : Ce / (Ca + Ce);
-  const abstractness = counts.exported === 0 ? null : counts.abstract / counts.exported;
+  // Data is neither abstract nor concrete, so it leaves both sides of the ratio.
+  const measured = counts.exported - counts.data;
+  const abstractness = measured === 0 ? null : counts.abstract / measured;
   const distance =
     instability === null || abstractness === null ? null : Math.abs(abstractness + instability - 1);
   return { id, level, Ca, Ce, instability, abstractness, distance, ...counts };
@@ -84,7 +88,7 @@ function metricsOf(
 
 function declarationCounter(
   index: SymbolIndex,
-  isAbstract: (declaration: Declaration) => boolean,
+  roleOf: (declaration: Declaration) => Role,
 ): (files: string[]) => DeclarationCounts {
   const unresolvedByFile = new Map<string, number>();
   for (const ref of index.heritage()) {
@@ -93,11 +97,15 @@ function declarationCounter(
   }
 
   return (files) => {
-    const counts: DeclarationCounts = { exported: 0, abstract: 0, unresolvedHeritage: 0 };
+    const counts: DeclarationCounts = { exported: 0, abstract: 0, data: 0, unresolvedHeritage: 0 };
     for (const file of files) {
-      const exported = index.declarations(file).filter((declaration) => declaration.exported);
-      counts.exported += exported.length;
-      counts.abstract += exported.filter(isAbstract).length;
+      for (const declaration of index.declarations(file)) {
+        if (!declaration.exported) continue;
+        counts.exported++;
+        const role = roleOf(declaration);
+        if (role === 'abstract') counts.abstract++;
+        else if (role === 'data') counts.data++;
+      }
       counts.unresolvedHeritage += unresolvedByFile.get(file) ?? 0;
     }
     return counts;
@@ -107,16 +115,23 @@ function declarationCounter(
 const ABSTRACT_CAPABLE = new Set<Declaration['kind']>(['interface', 'abstract-class']);
 const JDEPEND_ABSTRACT = new Set<Declaration['kind']>(['interface', 'type', 'abstract-class']);
 
-// "jdepend": every interface, type alias and abstract class is abstract.
+type Role = 'abstract' | 'data' | 'concrete';
+
+// "jdepend": every interface, type alias and abstract class is abstract, and
+// there is no data category.
 // "implemented": an interface or abstract class is abstract only when a class
-// implements or extends it.
-function abstractnessRule(
-  index: SymbolIndex,
-  mode: AbstractnessMode,
-): (declaration: Declaration) => boolean {
-  if (mode === 'jdepend') return (declaration) => JDEPEND_ABSTRACT.has(declaration.kind);
+// implements or extends it; otherwise a declaration shaped like data is data.
+function roleRule(index: SymbolIndex, mode: AbstractnessMode): (declaration: Declaration) => Role {
+  if (mode === 'jdepend') {
+    return (declaration) => (JDEPEND_ABSTRACT.has(declaration.kind) ? 'abstract' : 'concrete');
+  }
   const implemented = implementedDeclarations(index.heritage());
-  return (declaration) => ABSTRACT_CAPABLE.has(declaration.kind) && implemented.has(declaration.id);
+  return (declaration) => {
+    if (ABSTRACT_CAPABLE.has(declaration.kind) && implemented.has(declaration.id)) {
+      return 'abstract';
+    }
+    return declaration.dataShape ? 'data' : 'concrete';
+  };
 }
 
 // Everything a class implements or extends, plus every interface those extend:

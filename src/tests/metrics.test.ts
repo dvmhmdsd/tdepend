@@ -86,7 +86,48 @@ describe('computeMetrics: abstractness', () => {
   it('counts unresolved heritage where the reference is written, at every level', () => {
     expect(byId(implemented.file, 'src/external.ts').unresolvedHeritage).toBe(3);
     expect(byId(implemented.file, 'src/ambiguous.ts').unresolvedHeritage).toBe(1);
-    expect(byId(implemented.component, 'dir:proj:(repo):src').unresolvedHeritage).toBe(5);
+    expect(byId(implemented.component, 'dir:proj:(repo):src').unresolvedHeritage).toBe(7);
+  });
+});
+
+describe('computeMetrics: data declarations', () => {
+  // [exported, abstract, data, abstractness] for one file.
+  const dataRow = (list: Metrics[], file: string) => {
+    const m = byId(list, `src/${file}`);
+    return [m.exported, m.abstract, m.data, m.abstractness];
+  };
+
+  it('implemented: data declarations leave A; an implemented fields-only interface stays abstract', () => {
+    expect(dataRow(implemented.file, 'shapes.ts')).toEqual([4, 2, 2, 1]);
+    expect(dataRow(implemented.file, 'ancestry.ts')).toEqual([3, 2, 1, 1]);
+    expect(dataRow(implemented.file, 'contract.ts')).toEqual([3, 2, 0, 2 / 3]);
+    expect(dataRow(implemented.file, 'data-shapes.ts')).toEqual([12, 0, 5, 0]);
+  });
+
+  it('a file of only data has no abstractness or distance', () => {
+    const dup = byId(implemented.file, 'src/dup-a.ts');
+
+    expect([dup.exported, dup.data, dup.abstractness, dup.distance]).toEqual([1, 1, null, null]);
+  });
+
+  it('data still counts in coupling', () => {
+    expect([
+      byId(implemented.file, 'src/shapes.ts').Ca,
+      byId(jdepend.file, 'src/shapes.ts').Ca,
+    ]).toEqual([2, 2]);
+  });
+
+  it('jdepend has no data category', () => {
+    expect(dataRow(jdepend.file, 'shapes.ts')).toEqual([4, 4, 0, 1]);
+    expect(dataRow(jdepend.file, 'dup-a.ts')).toEqual([1, 1, 0, 1]);
+  });
+
+  it('a component leaves out the data of all its files', () => {
+    const component = byId(implemented.component, 'dir:proj:(repo):src');
+    const fileData = implemented.file.reduce((total, m) => total + m.data, 0);
+
+    expect(component.data).toBe(fileData);
+    expect(component.data).toBeGreaterThan(0);
   });
 });
 
@@ -146,7 +187,7 @@ describe('computeMetrics: shape', () => {
     const fileIds = implemented.file.map((metrics) => metrics.id);
 
     expect(fileIds).toEqual([...fileIds].sort());
-    expect(fileIds).toHaveLength(29);
+    expect(fileIds).toHaveLength(30);
     expect(implemented.component.map((metrics) => [metrics.id, metrics.level])).toEqual([
       ['dir:proj:(repo):src', 'component'],
     ]);
