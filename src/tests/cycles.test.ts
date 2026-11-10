@@ -85,7 +85,6 @@ function input(graph: CycleGraph, overrides: Partial<CycleInput> = {}): CycleInp
   return { level: 'file', graphId: 'graph-1', scopeId: 'proj:(repo)', ...graph, ...overrides };
 }
 
-// The witness as the node sequence it walks, starting at its first hop.
 const walk = (cycle: Cycle): string[] => cycle.hops.map((hop) => hop.fromGroup);
 
 // Every hop follows a real edge of the graph through one of that edge's own

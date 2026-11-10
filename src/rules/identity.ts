@@ -11,7 +11,7 @@ import type {
   ViolationTarget,
 } from './types';
 
-// §9: what makes two findings "the same" across runs. Lines, columns and the
+// What makes two findings "the same" across runs. Lines, columns and the
 // message stay out, so editing above an import keeps its identity; severity
 // is in, so raising `warn` to `error` is a new finding until it is accepted.
 export function identityOf(violation: ViolationDraft): unknown[] {
@@ -57,7 +57,6 @@ export function severityOf(rule: RuleDefinition): 'error' | 'warn' {
   return rule.severity === 'warn' ? 'warn' : 'error';
 }
 
-// The finding for one import site: located at the site, pointing at its target.
 export function importViolation(
   instance: RuleInstance,
   record: SiteRecord,

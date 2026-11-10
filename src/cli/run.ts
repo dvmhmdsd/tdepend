@@ -31,8 +31,7 @@ interface AnalyzeCliOptions extends CommonOptions {
 }
 
 /**
- * Runs the CLI and resolves to its exit code. Only the commands that exist at
- * this milestone are registered: `analyze` and `explain`.
+ * Runs the CLI and resolves to its exit code.
  */
 export async function runCli(argv: string[], io: CliIo): Promise<ExitCode> {
   let exitCode: ExitCode = 0;
