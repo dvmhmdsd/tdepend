@@ -1,4 +1,4 @@
-import type { SiteRecord } from '../graph/buildFileGraph';
+import { compareSiteRecords, type SiteRecord } from '../graph/buildFileGraph';
 import type { FileEdge } from '../graph/fileGraph';
 import type {
   AnalysisResult,
@@ -20,7 +20,7 @@ export function toSerializable(result: AnalysisResult): SerializableResult {
     version: 1,
     files: result.graph.files(),
     edges: result.graph.edges().map(serializeEdge),
-    sites: [...result.sites].sort(compareRecords).map(serializeSite),
+    sites: [...result.sites].sort(compareSiteRecords).map(serializeSite),
     report: serializeReport(result),
   };
 }
@@ -84,10 +84,4 @@ function siteLocation(record: SiteRecord): SerializableSiteLocation {
 
 function serializeUnsupported(record: SiteRecord): SerializableUnsupported {
   return { ...siteLocation(record), reason: record.resolution.reason ?? '' };
-}
-
-function compareRecords(a: SiteRecord, b: SiteRecord): number {
-  if (a.file !== b.file) return a.file < b.file ? -1 : 1;
-  if (a.site.line !== b.site.line) return a.site.line - b.site.line;
-  return a.site.column - b.site.column;
 }
