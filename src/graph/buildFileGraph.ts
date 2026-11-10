@@ -34,6 +34,13 @@ export interface SiteRecord {
   resolution: Resolution;
 }
 
+// Graph edges hold bare sites. This maps a list of them back to their records,
+// which carry the importing file and the resolution.
+export function siteRecordLookup(sites: SiteRecord[]): (edgeSites: ImportSite[]) => SiteRecord[] {
+  const recordOf = new Map(sites.map((record) => [record.site, record]));
+  return (edgeSites) => edgeSites.flatMap((site) => recordOf.get(site) ?? []);
+}
+
 export interface ResolutionReport {
   stats: Record<ResolutionClass, number>;
   unresolved: SiteRecord[];

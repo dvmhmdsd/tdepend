@@ -1,0 +1,12 @@
+[
+  ["src/eager-a.ts", "src/eager-b.ts", ["static"], true],
+  ["src/eager-b.ts", "src/eager-a.ts", ["dynamic"], true],
+  ["src/lazy-a.ts", "src/lazy-b.ts", ["static"], true],
+  ["src/lazy-b.ts", "src/lazy-a.ts", ["dynamic"], true],
+  ["src/runtime-a.ts", "src/runtime-b.ts", ["static"], true],
+  ["src/runtime-b.ts", "src/runtime-a.ts", ["static"], true],
+  ["src/type-a.ts", "src/type-b.ts", ["static"], true],
+  ["src/type-b.ts", "src/type-a.ts", ["type"], false],
+  ["src/usage-a.ts", "src/usage-b.ts", ["static"], true],
+  ["src/usage-b.ts", "src/usage-a.ts", ["static"], false]
+]
