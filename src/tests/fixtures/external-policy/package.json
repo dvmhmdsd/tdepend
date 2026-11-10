@@ -1,0 +1,12 @@
+{
+  "name": "external-policy",
+  "private": true,
+  "dependencies": {
+    "@acme/ui": "1.0.0",
+    "@prisma/client": "5.22.0",
+    "axios": "1.7.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}

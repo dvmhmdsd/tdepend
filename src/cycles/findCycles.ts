@@ -1,4 +1,4 @@
-import type { GroupGraph } from '../components/types';
+import type { Group, GroupGraph } from '../components/types';
 import { compareSiteRecords, siteRecordLookup, type SiteRecord } from '../graph/buildFileGraph';
 import type { FileGraph } from '../graph/fileGraph';
 import type { ImportSite } from '../parser/types';
@@ -96,19 +96,27 @@ export function findCycles(input: CycleInput, filter: CycleFilter, cache?: Cycle
 
 // The file graph as cycle input. Its edges hold bare sites, so each one is
 // mapped back to its record for the importing file and the resolved target.
-export function fileCycleGraph(graph: FileGraph, sites: SiteRecord[]): CycleGraph {
+// `keep` limits the nodes to a scope; edges leaving it are then ignored.
+export function fileCycleGraph(
+  graph: FileGraph,
+  sites: SiteRecord[],
+  keep: (file: string) => boolean = () => true,
+): CycleGraph {
   const recordsOf = siteRecordLookup(sites);
   return {
-    nodes: graph.files(),
+    nodes: graph.files().filter(keep),
     edgesFrom: (file) =>
       graph.edgesFrom(file).map((edge) => ({ to: edge.to, sites: recordsOf(edge.sites) })),
   };
 }
 
-export function groupCycleGraph(graph: GroupGraph): CycleGraph {
+export function groupCycleGraph(
+  graph: GroupGraph,
+  keep: (group: Group) => boolean = () => true,
+): CycleGraph {
   const groups = new Map(graph.groups.map((group) => [group.id, group]));
   return {
-    nodes: [...groups.keys()],
+    nodes: graph.groups.filter(keep).map((group) => group.id),
     edgesFrom: (id) => {
       const group = groups.get(id);
       if (group === undefined) return [];
