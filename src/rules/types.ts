@@ -112,7 +112,6 @@ export type ViolationKind = 'import' | 'cycle' | 'coverage';
 
 export type ViolationTarget = { file: string } | { module: string; workspace?: boolean };
 
-// A site as plain data: the parser node is left behind.
 export type SiteData = Omit<ImportSite, 'node'>;
 
 export interface WitnessHop extends Omit<CycleHop, 'site'> {
@@ -126,7 +125,7 @@ export interface CycleWitness {
   optimal: boolean;
 }
 
-// §8: import and cycle findings have `to` and `site`; coverage has neither.
+// Import and cycle findings have `to` and `site`; coverage has neither.
 export interface Violation {
   kind: ViolationKind;
   ruleId: string;

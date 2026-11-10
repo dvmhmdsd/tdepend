@@ -58,7 +58,6 @@ const userRule = (rule: RuleDefinition): RuleInstance => ({
 const run = (input: RuleInput, ...rules: RuleDefinition[]): RuleEvaluation =>
   evaluateRules(input, rules.map(userRule));
 
-// Each import finding as "file:line".
 const sitesOf = (evaluation: RuleEvaluation): string[] =>
   evaluation.violations.map((violation) => `${violation.from}:${violation.site?.line}`);
 

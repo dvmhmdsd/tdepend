@@ -73,7 +73,6 @@ export function selectorMatcher(selector: TargetSelector | string[] | undefined)
   };
 }
 
-// The `files` globs of a selector, for the "matches no files" warning.
 export function selectorFiles(selector: TargetSelector | string[]): string[] | undefined {
   return Array.isArray(selector) ? selector : selector.files;
 }

@@ -50,16 +50,15 @@ function compareEdges(a: FileEdge, b: FileEdge): number {
   return compareKeys([a.from, a.to], [b.from, b.to]);
 }
 
-// A site's contribution to the identity: the properties cycle filtering reads.
-// `loadsTarget` answers `ignoreTypeOnly` and picks the witness site; `deferred`
-// answers `ignoreLazyImports`; `kind` decides whether a site is eligible at all.
+// A site's part of the graph id: the properties that filters read. `loadsTarget`
+// and `deferred` decide which imports a cycle search keeps; `kind` is what a
+// filter by import style reads.
 type SiteSignature = [EdgeKind, boolean, boolean];
 
-// Cache key for anything derived from the graph: the sorted edges plus the
-// filter-relevant shape of their sites. A source edit that moves a site between
-// filtering categories gets a new identity, so a cached cycle result is never
-// reused across it. Line and column stay out on purpose: editing above an import
-// must not churn the id.
+// The graph's id: the sorted edges plus the filter-relevant shape of their
+// sites, so moving a site between filter categories changes it. Line and column
+// stay out, so editing above an import keeps the id. That is also why results
+// that carry positions, such as cycle witnesses, are cached per analysis.
 function hashEdges(edges: FileEdge[]): string {
   const canonical = edges.map((edge) => [
     edge.from,

@@ -19,8 +19,7 @@ const PLURAL: Record<CycleLevel, string> = {
   package: 'packages',
 };
 
-// One violation per strongly connected group, located at the witness's first
-// hop. `ignoreTypeOnly` defaults to true and `ignoreLazyImports` to false.
+// One violation per strongly connected group, located at the witness's first hop.
 export function evaluateNoCycles(
   instance: RuleInstance,
   rule: NoCyclesRule,
