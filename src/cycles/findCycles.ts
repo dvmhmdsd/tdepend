@@ -1,5 +1,5 @@
 import type { GroupGraph } from '../components/types';
-import { siteRecordLookup, type SiteRecord } from '../graph/buildFileGraph';
+import { compareSiteRecords, siteRecordLookup, type SiteRecord } from '../graph/buildFileGraph';
 import type { FileGraph } from '../graph/fileGraph';
 import type { ImportSite } from '../parser/types';
 import type { Target } from '../resolver/types';
@@ -139,7 +139,7 @@ function eligibleGraph(input: CycleInput, filter: CycleFilter): EligibleGraph {
       for (const record of edge.sites) {
         if (!isEligible(record, filter)) continue;
         const current = witnessSites[from].get(to);
-        if (current === undefined || compareSites(record, current) < 0) {
+        if (current === undefined || compareSiteRecords(record, current) < 0) {
           witnessSites[from].set(to, record);
         }
       }
@@ -160,11 +160,6 @@ function isEligible(record: SiteRecord, filter: CycleFilter): boolean {
   if (record.resolution.target === null) return false;
   if (filter.ignoreTypeOnly && record.site.loadsTarget === false) return false;
   return !(filter.ignoreLazyImports && record.site.deferred === true);
-}
-
-function compareSites(left: SiteRecord, right: SiteRecord): number {
-  if (left.file !== right.file) return left.file < right.file ? -1 : 1;
-  return left.site.line - right.site.line || left.site.column - right.site.column;
 }
 
 interface Frame {

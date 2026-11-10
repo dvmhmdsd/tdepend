@@ -41,6 +41,12 @@ export function siteRecordLookup(sites: SiteRecord[]): (edgeSites: ImportSite[])
   return (edgeSites) => edgeSites.flatMap((site) => recordOf.get(site) ?? []);
 }
 
+// The order sites are listed and chosen in: importing file, then line, then column.
+export function compareSiteRecords(left: SiteRecord, right: SiteRecord): number {
+  if (left.file !== right.file) return left.file < right.file ? -1 : 1;
+  return left.site.line - right.site.line || left.site.column - right.site.column;
+}
+
 export interface ResolutionReport {
   stats: Record<ResolutionClass, number>;
   unresolved: SiteRecord[];
