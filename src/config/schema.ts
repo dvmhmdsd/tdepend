@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { ruleConfigSchema } from '../rules/types';
+
 const coverageSchema = z.strictObject({
   requireAll: z.boolean().default(false),
   allowUnmatched: z.array(z.string()).default([]),
@@ -47,7 +49,7 @@ export const configSchema = z.strictObject({
     .default(['tsc', 'esbuild', 'swc']),
   resolve: resolveSchema.default({ aliases: {}, virtual: [], ignoreUnresolved: [] }),
   metrics: metricsSchema.default({ abstractness: 'implemented', thresholds: { distance: null } }),
-  rules: z.array(z.unknown()).default([]),
+  rules: z.array(ruleConfigSchema).default([]),
   baseline: z.string().nullable().default(null),
   components: componentsSchema.optional(),
 });

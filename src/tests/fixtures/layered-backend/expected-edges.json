@@ -1,0 +1,20 @@
+[
+  ["src/main.ts", "src/orders/orders.controller.ts", ["static"], true],
+  ["src/main.ts", "src/users/users.controller.ts", ["static"], true],
+  ["src/orders/orders.controller.ts", "src/orders/orders.service.ts", ["static"], true],
+  [
+    "src/orders/orders.controller.ts",
+    "src/users/repositories/users.repository.ts",
+    ["static"],
+    true
+  ],
+  ["src/orders/orders.service.ts", "src/users/repositories/users.repository.ts", ["static"], true],
+  ["src/orders/orders.service.ts", "src/users/testing.ts", ["static"], true],
+  ["src/orders/orders.service.ts", "src/users/users.service.ts", ["static"], true],
+  ["src/users/index.ts", "src/users/users.service.ts", ["re-export"], true],
+  ["src/users/users.controller.ts", "src/users/repositories/users.repository.ts", ["static"], true],
+  ["src/users/users.controller.ts", "src/users/users.service.ts", ["static"], true],
+  ["src/users/users.service.ts", "src/config.ts", ["static"], true],
+  ["src/users/users.service.ts", "src/orders/orders.service.ts", ["static"], true],
+  ["src/users/users.service.ts", "src/users/repositories/users.repository.ts", ["static"], true]
+]

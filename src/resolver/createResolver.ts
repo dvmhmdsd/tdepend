@@ -313,7 +313,8 @@ function isAsset(specifier: string): boolean {
   return ASSET_EXTENSIONS.has(base.slice(dot).toLowerCase());
 }
 
-function builtinIdentity(specifier: string): string {
+// Built-ins are always named in their `node:` form, so `fs` and `node:fs` are one module.
+export function builtinIdentity(specifier: string): string {
   return specifier.startsWith('node:') ? specifier : `node:${specifier}`;
 }
 
