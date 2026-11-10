@@ -1,7 +1,6 @@
 import { compareKeys, indexBy } from '../collections';
-import type { SiteRecord } from '../graph/buildFileGraph';
+import { siteRecordLookup, type SiteRecord } from '../graph/buildFileGraph';
 import type { FileGraph } from '../graph/fileGraph';
-import type { ImportSite } from '../parser/types';
 import { WORKSPACE_ROOT_PACKAGE } from './assignComponents';
 import type { Assignment, Group, GroupEdge, GroupGraph, GroupLevel } from './types';
 
@@ -14,7 +13,7 @@ export function buildGroupGraph(
   sites: SiteRecord[],
 ): GroupGraph {
   const groupOf = groupLookup(assignment, level);
-  const recordOf = new Map<ImportSite, SiteRecord>(sites.map((record) => [record.site, record]));
+  const recordsOf = siteRecordLookup(sites);
   const merged = new Map<string, GroupEdge>();
 
   for (const fileEdge of graph.edges()) {
@@ -29,7 +28,7 @@ export function buildGroupGraph(
       merged.set(key, edge);
     }
     edge.fileEdges.push(fileEdge);
-    edge.sites.push(...fileEdge.sites.flatMap((site) => recordOf.get(site) ?? []));
+    edge.sites.push(...recordsOf(fileEdge.sites));
     edge.runtime ||= fileEdge.runtime;
   }
 

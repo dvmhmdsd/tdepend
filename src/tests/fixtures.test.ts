@@ -10,6 +10,7 @@ import { FIXTURES, buildFixture, edgeTuples, expectedEdges } from './helpers/fix
 
 const REPO_FIXTURES = [
   'case-insensitive',
+  'cycles',
   'express-js-cjs',
   'fastify-esm',
   'feature-frontend',
