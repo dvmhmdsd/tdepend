@@ -52,7 +52,7 @@ export function buildGroupGraph(
 
 // A file outside every package has no package of its own, so at this level it
 // falls into the workspace-root bucket, which only exists in a workspace repo.
-function groupLookup(
+export function groupLookup(
   assignment: Assignment,
   level: GroupLevel,
 ): (file: string) => Group | undefined {

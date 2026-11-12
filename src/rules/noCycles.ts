@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import type { Group } from '../components/types';
+import { groupLookup } from '../components/groupGraph';
 import {
   fileCycleGraph,
   findCycles,
@@ -12,12 +12,6 @@ import {
 import { inScope, type RuleContext, type RuleOutcome } from './context';
 import { finishViolation, severityOf, siteData } from './identity';
 import type { CycleWitness, NoCyclesRule, RuleInstance, Violation } from './types';
-
-const PLURAL: Record<CycleLevel, string> = {
-  file: 'files',
-  component: 'components',
-  package: 'packages',
-};
 
 // One violation per strongly connected group, located at the witness's first hop.
 export function evaluateNoCycles(
@@ -42,7 +36,7 @@ export function evaluateNoCycles(
     context.input.cycleCache,
   );
   return {
-    violations: cycles.map((cycle) => cycleViolation(instance, rule, cycle, graph.nameOf)),
+    violations: cycles.map((cycle) => cycleViolation(instance, rule, cycle, graph)),
     warnings: [],
   };
 }
@@ -61,21 +55,18 @@ function scopedGraph(
   context: RuleContext,
 ): ScopedGraph | null {
   const { input } = context;
+  const keep = (file: string): boolean => inScope(scope, file);
   if (level === 'file') {
-    return {
-      cycleGraph: fileCycleGraph(input.graph, input.sites, (file) => inScope(scope, file)),
-      nameOf: (id) => id,
-    };
+    return { cycleGraph: fileCycleGraph(input.graph, input.sites, keep), nameOf: (id) => id };
   }
-  const groupGraph = level === 'component' ? input.groups.component : input.groups.package;
-  if (groupGraph === undefined) return null;
-  const groups = new Map(groupGraph.groups.map((group): [string, Group] => [group.id, group]));
-  return {
-    cycleGraph: groupCycleGraph(groupGraph, (group) =>
-      groupGraph.filesOf(group).some((file) => inScope(scope, file)),
-    ),
-    nameOf: (id) => groups.get(id)?.name ?? id,
-  };
+  if (level === 'package' && input.groups.package === undefined) return null;
+  const cycleGraph = groupCycleGraph(
+    input.graph,
+    input.sites,
+    groupLookup(input.assignment, level),
+    keep,
+  );
+  return { cycleGraph, nameOf: cycleGraph.nameOf };
 }
 
 // The cache scope is the set of files itself: the root project and the whole
@@ -90,7 +81,7 @@ function cycleViolation(
   instance: RuleInstance,
   rule: NoCyclesRule,
   cycle: Cycle,
-  nameOf: (id: string) => string,
+  { cycleGraph, nameOf }: ScopedGraph,
 ): Violation {
   const [first] = cycle.hops;
   const witness: CycleWitness = {
@@ -100,6 +91,11 @@ function cycleViolation(
     optimal: cycle.optimal,
   };
   const path = [...cycle.hops.map((hop) => hop.fromGroup), first.fromGroup].map(nameOf).join(' → ');
+  const loose = cycle.members.filter((id) => cycleGraph.isLoose?.(id) ?? false).length;
+  const between =
+    loose === 0
+      ? count(cycle.members.length, cycle.level)
+      : `${count(cycle.members.length - loose, cycle.level)} and ${count(loose, 'file')} outside every ${cycle.level}`;
   return finishViolation({
     kind: 'cycle',
     ruleId: rule.id,
@@ -107,10 +103,14 @@ function cycleViolation(
     severity: severityOf(rule),
     message:
       rule.message ??
-      `Import cycle between ${cycle.members.length} ${PLURAL[cycle.level]}: ${path}. Remove or invert one of these imports.`,
+      `Import cycle between ${between}: ${path}. Remove or invert one of these imports.`,
     from: first.fromFile,
     to: first.to,
     site: siteData(first.site),
     witness,
   });
+}
+
+function count(amount: number, noun: string): string {
+  return `${amount} ${noun}${amount === 1 ? '' : 's'}`;
 }

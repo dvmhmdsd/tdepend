@@ -1,3 +1,4 @@
+import { isBucket } from '../components/assignComponents';
 import type { Group } from '../components/types';
 import { inScope, noMatchWarning, type RuleContext, type RuleOutcome } from './context';
 import { importViolation } from './identity';
@@ -48,7 +49,7 @@ function privacyTest(rule: PrivateRule): (file: string, owner: Group) => boolean
     return (file, owner) => matches(insideOf(owner, file));
   }
   const isPublic = globMatcher(rule.public);
-  return (file, owner) => !isRootBucket(owner) && !isPublic(insideOf(owner, file));
+  return (file, owner) => !isBucket(owner) && !isPublic(insideOf(owner, file));
 }
 
 // The file's path relative to its component's directory.
@@ -56,10 +57,6 @@ function insideOf(owner: Group, file: string): string {
   if (owner.directory === '') return file;
   const prefix = `${owner.directory}/`;
   return file.startsWith(prefix) ? file.slice(prefix.length) : file;
-}
-
-function isRootBucket(group: Group): boolean {
-  return group.id.startsWith('root:');
 }
 
 // With the file strategy every file is its own component, so nothing can be

@@ -135,6 +135,12 @@ function directoryPlacement(project: Project, dir: string): Placement {
   return { id: `dir:${project.id}:${shown}`, name: shown, directory: dir };
 }
 
+// A project's root bucket or the workspace-root package: the files nothing
+// claimed, not a unit anyone designed.
+export function isBucket(group: Group): boolean {
+  return group.id.startsWith('root:') || group.id === WORKSPACE_ROOT_PACKAGE;
+}
+
 function rootBucket(project: Project): Placement {
   return {
     id: `root:${project.id}`,

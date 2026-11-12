@@ -355,18 +355,49 @@ describe('no-cycles', () => {
 
     expect(evaluation.violations).toHaveLength(1);
     const [cycle] = evaluation.violations;
-    // The root bucket is a group too: main.ts imports the users controller and
-    // users.service imports config.ts, so the bucket is in the same tangle.
+    // main.ts imports the users controller and users.service imports config.ts.
+    // Both are leftover files, each its own node, so neither joins the cycle.
     expect(cycle.witness?.members).toEqual([
       'dir:proj:(repo):src/orders',
       'dir:proj:(repo):src/users',
-      'root:proj:(repo)',
     ]);
     expect(cycle.from).toBe('src/orders/orders.controller.ts');
     expect(cycle.site?.line).toBe(2);
     expect(cycle.message).toBe(
-      'Import cycle between 3 components: src/orders → src/users → src/orders. Remove or invert one of these imports.',
+      'Import cycle between 2 components: src/orders → src/users → src/orders. Remove or invert one of these imports.',
     );
+  });
+
+  it('component level: a cycle through a leftover file is found and counts it apart; leftover files alone make none', () => {
+    const leftovers = inputFor('leftover-files');
+    const evaluation = run(leftovers, { type: 'no-cycles', id: 'C', level: 'component' });
+
+    expect(evaluation.violations).toHaveLength(1);
+    const [cycle] = evaluation.violations;
+    const members = [
+      'dir:proj:(repo):src/orders',
+      'dir:proj:(repo):src/users',
+      'file:src/helpers.ts',
+    ];
+    expect(cycle.witness?.members).toEqual(members);
+    expect(cycle.witness?.hops.map((hop) => [hop.fromGroup, hop.fromFile])).toEqual([
+      ['dir:proj:(repo):src/orders', 'src/orders/orders.service.ts'],
+      ['dir:proj:(repo):src/users', 'src/users/users.service.ts'],
+      ['file:src/helpers.ts', 'src/helpers.ts'],
+    ]);
+    expect(cycle).toMatchObject({
+      from: 'src/orders/orders.service.ts',
+      to: { file: 'src/users/user.model.ts' },
+      message:
+        'Import cycle between 2 components and 1 file outside every component: src/orders → src/users → src/helpers.ts → src/orders. Remove or invert one of these imports.',
+    });
+    expect(cycle.identity).toEqual(['cycle', 'C', REPO_SCOPE, 'error', 'component', members]);
+
+    // logger.ts and format.ts import each other: a cycle of files, left to the file level.
+    const files = run(leftovers, { type: 'no-cycles', id: 'F', level: 'file' }).violations;
+    expect(files.map((violation) => violation.witness?.members)).toEqual([
+      ['src/format.ts', 'src/logger.ts'],
+    ]);
   });
 
   it('package level without workspace packages reports nothing; ignoreTypeOnly defaults to true', () => {

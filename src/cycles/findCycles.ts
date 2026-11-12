@@ -1,4 +1,5 @@
-import type { Group, GroupGraph } from '../components/types';
+import { isBucket } from '../components/assignComponents';
+import type { Group } from '../components/types';
 import { compareSiteRecords, siteRecordLookup, type SiteRecord } from '../graph/buildFileGraph';
 import type { FileGraph } from '../graph/fileGraph';
 import type { ImportSite } from '../parser/types';
@@ -37,6 +38,14 @@ export interface CycleEdge {
 export interface CycleGraph {
   nodes: string[];
   edgesFrom(id: string): CycleEdge[];
+  // A loose node can be part of a cycle but cannot make one alone: a group made
+  // only of loose nodes is not reported, and every witness passes through at
+  // least one node that isn't loose.
+  isLoose?(id: string): boolean;
+}
+
+export interface GroupCycleGraph extends CycleGraph {
+  nameOf(id: string): string;
 }
 
 export interface CycleInput extends CycleGraph {
@@ -86,7 +95,7 @@ export function findCycles(input: CycleInput, filter: CycleFilter, cache?: Cycle
 
   const graph = eligibleGraph(input, filter);
   const cycles = stronglyConnectedGroups(graph.successors)
-    .filter((group) => group.length > 1)
+    .filter((group) => group.length > 1 && group[0] < graph.anchors)
     .sort((left, right) => left[0] - right[0])
     .map((group) => cycleOf(graph, group, input.level));
 
@@ -110,33 +119,73 @@ export function fileCycleGraph(
   };
 }
 
+// The component or package graph as cycle input, built from the file graph.
+// A bucket is not one node: it holds files with nothing in common, such as an
+// entry point that imports every component and a config file they all import,
+// and as one node it would join all of them into a single cycle. Each of its
+// files is a loose node of its own instead, so a cycle through a leftover file
+// is still found. A node is kept when `keep` accepts one of its files.
 export function groupCycleGraph(
-  graph: GroupGraph,
-  keep: (group: Group) => boolean = () => true,
-): CycleGraph {
-  const groups = new Map(graph.groups.map((group) => [group.id, group]));
+  graph: FileGraph,
+  sites: SiteRecord[],
+  groupOf: (file: string) => Group | undefined,
+  keep: (file: string) => boolean = () => true,
+): GroupCycleGraph {
+  const recordsOf = siteRecordLookup(sites);
+  const nodeOf = new Map<string, string>();
+  const names = new Map<string, string>();
+  const loose = new Set<string>();
+  const nodes = new Set<string>();
+
+  for (const file of graph.files()) {
+    const group = groupOf(file);
+    if (group === undefined) continue;
+    const bucket = isBucket(group);
+    const node = bucket ? `file:${file}` : group.id;
+    nodeOf.set(file, node);
+    names.set(node, bucket ? file : group.name);
+    if (bucket) loose.add(node);
+    if (keep(file)) nodes.add(node);
+  }
+
+  const edges = new Map<string, Map<string, SiteRecord[]>>();
+  for (const edge of graph.edges()) {
+    const from = nodeOf.get(edge.from);
+    const to = nodeOf.get(edge.to);
+    if (from === undefined || to === undefined || from === to) continue;
+    const targets = edges.get(from) ?? new Map<string, SiteRecord[]>();
+    edges.set(from, targets);
+    const records = targets.get(to) ?? [];
+    targets.set(to, records);
+    records.push(...recordsOf(edge.sites));
+  }
+
   return {
-    nodes: graph.groups.filter(keep).map((group) => group.id),
-    edgesFrom: (id) => {
-      const group = groups.get(id);
-      if (group === undefined) return [];
-      return graph.edgesFrom(group).map((edge) => ({ to: edge.to.id, sites: edge.sites }));
-    },
+    nodes: [...nodes],
+    edgesFrom: (id) => [...(edges.get(id) ?? [])].map(([to, records]) => ({ to, sites: records })),
+    isLoose: (id) => loose.has(id),
+    nameOf: (id) => names.get(id) ?? id,
   };
 }
 
-// The graph the search runs on. Nodes are indices in sorted id order, so
-// comparing indices compares ids. Each kept edge remembers the site its hop
-// will show: the earliest eligible one by file, line and column.
+// The graph the search runs on. Nodes are indices, ordered with every node
+// that isn't loose first and by id within each part, so comparing indices
+// compares that order. `anchors` counts the nodes that aren't loose. Each kept
+// edge remembers the site its hop will show: the earliest eligible one by file,
+// line and column.
 interface EligibleGraph {
   ids: string[];
+  anchors: number;
   successors: number[][];
   predecessors: number[][];
   witnessSites: Array<Map<number, SiteRecord>>;
 }
 
 function eligibleGraph(input: CycleInput, filter: CycleFilter): EligibleGraph {
-  const ids = [...new Set(input.nodes)].sort();
+  const isLoose = (id: string): boolean => input.isLoose?.(id) ?? false;
+  const unique = [...new Set(input.nodes)].sort();
+  const ids = [...unique.filter((id) => !isLoose(id)), ...unique.filter(isLoose)];
+  const anchors = ids.findIndex(isLoose);
   const indexOf = new Map(ids.map((id, index) => [id, index]));
   const witnessSites = ids.map(() => new Map<number, SiteRecord>());
 
@@ -159,7 +208,13 @@ function eligibleGraph(input: CycleInput, filter: CycleFilter): EligibleGraph {
   successors.forEach((targets, from) => {
     for (const to of targets) predecessors[to].push(from);
   });
-  return { ids, successors, predecessors, witnessSites };
+  return {
+    ids,
+    anchors: anchors === -1 ? ids.length : anchors,
+    successors,
+    predecessors,
+    witnessSites,
+  };
 }
 
 // Filters run per site; an edge stays while any of its sites is eligible. A
@@ -253,14 +308,16 @@ function hopOf(graph: EligibleGraph, from: number, to: number): CycleHop {
 // The shortest cycle in the group, as a walk starting at its smallest member.
 // Every cycle has exactly one smallest member, so a backwards BFS from each
 // member, over only the members above it, finds the shortest cycle that starts
-// there. Members are tried in id order and a later one must be strictly
-// shorter to win, which settles equal lengths by the smaller starting member.
+// there. Members are tried in order and a later one must be strictly shorter
+// to win, which settles equal lengths by the smaller starting member. Loose
+// members come last, so a cycle that starts at one is made only of loose
+// members and the search stops there.
 function shortestWalk(graph: EligibleGraph, group: number[], inGroup: Set<number>): number[] {
   let best: { start: number; length: number; distance: Map<number, number> } | undefined;
 
   for (const start of group) {
     const longestUseful = best === undefined ? Infinity : best.length - 1;
-    if (longestUseful < 2) break;
+    if (longestUseful < 2 || start >= graph.anchors) break;
 
     const distance = stepsBackTo(
       graph.predecessors,
@@ -276,7 +333,8 @@ function shortestWalk(graph: EligibleGraph, group: number[], inGroup: Set<number
     if (length <= longestUseful) best = { start, length, distance };
   }
 
-  // The smallest member always closes a cycle inside its own group.
+  // The smallest member is never loose in a reported group, and it always
+  // closes a cycle inside its own group.
   const { start, length, distance } = best!;
   return smallestWalk(graph.successors, start, length, distance);
 }
@@ -322,16 +380,21 @@ function smallestWalk(
   return walk;
 }
 
-// The first cycle a depth-first walk from `start` closes, taking members in id
-// order, rotated to start at its smallest member.
+// The first cycle a depth-first walk from `start` closes, taking members in
+// order, rotated to start at its smallest member. A cycle of only loose members
+// is passed over. The walk still ends: `start` is not loose, and every member
+// of its group reaches it, so the walk meets an edge back to it.
 function firstWalk(graph: EligibleGraph, start: number, inGroup: Set<number>): number[] {
   const path: number[] = [];
   const position = new Map<number, number>();
+  // Positions on the path of its members that aren't loose, ascending.
+  const anchored: number[] = [];
   const finished = new Set<number>();
   const frames: Frame[] = [];
 
   const enter = (node: number): void => {
     position.set(node, path.length);
+    if (node < graph.anchors) anchored.push(path.length);
     path.push(node);
     frames.push({ node, next: 0 });
   };
@@ -344,12 +407,13 @@ function firstWalk(graph: EligibleGraph, start: number, inGroup: Set<number>): n
       const target = targets[frame.next++];
       if (!inGroup.has(target) || finished.has(target)) continue;
       const at = position.get(target);
-      if (at !== undefined) return rotateToSmallest(path.slice(at));
-      enter(target);
+      if (at === undefined) enter(target);
+      else if (anchored[anchored.length - 1] >= at) return rotateToSmallest(path.slice(at));
       continue;
     }
     frames.pop();
     path.pop();
+    if (anchored[anchored.length - 1] === path.length) anchored.pop();
     position.delete(frame.node);
     finished.add(frame.node);
   }

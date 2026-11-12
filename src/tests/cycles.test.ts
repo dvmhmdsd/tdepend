@@ -1,8 +1,8 @@
 import type * as ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
-import { assignComponents } from '../components/assignComponents';
-import { buildGroupGraph } from '../components/groupGraph';
+import { WORKSPACE_ROOT_PACKAGE, assignComponents } from '../components/assignComponents';
+import type { Group, GroupLevel } from '../components/types';
 import {
   CycleCache,
   OPTIMAL_WITNESS_LIMIT,
@@ -16,6 +16,7 @@ import {
   type CycleInput,
 } from '../cycles/findCycles';
 import type { SiteRecord } from '../graph/buildFileGraph';
+import { FileGraph, type FileEdge } from '../graph/fileGraph';
 import type { EdgeKind } from '../parser/types';
 import { buildFixtureParts } from './helpers/fixtureGraph';
 import {
@@ -23,6 +24,7 @@ import {
   denseScc,
   longSparseScc,
   manySmallSccs,
+  nodeId,
   randomGraph,
   shuffled,
   type SyntheticGraph,
@@ -77,6 +79,33 @@ function graphOf(edges: EdgeSpec[], nodes?: string[]): CycleGraph {
   };
 }
 
+function withLoose(graph: CycleGraph, loose: Set<string>): CycleGraph {
+  return { ...graph, isLoose: (id) => loose.has(id) };
+}
+
+// A file graph with one loading static site per edge, and those sites as records.
+function fileGraphOf(edges: Array<[string, string]>): { graph: FileGraph; sites: SiteRecord[] } {
+  const sites = edges.map(([from, to]) => record(from, to, {}));
+  const fileEdges = edges.map(([from, to], index): FileEdge => ({
+    from,
+    to,
+    sites: [sites[index].site],
+    runtime: true,
+    mapped: false,
+  }));
+  return { graph: new FileGraph([...new Set(edges.flat())], fileEdges), sites };
+}
+
+function group(id: string, name: string, level: GroupLevel): Group {
+  return { id, name, directory: '', projectId: 'proj:(repo)', packageId: null, level };
+}
+
+// Groups by the longest matching path prefix; '' catches everything else.
+function groupsByPrefix(groups: Record<string, Group>): (file: string) => Group {
+  const prefixes = Object.keys(groups).sort((a, b) => b.length - a.length);
+  return (file) => groups[prefixes.find((prefix) => file.startsWith(prefix))!];
+}
+
 function syntheticInput(graph: SyntheticGraph): CycleGraph {
   return graphOf(graph.edges, graph.nodes);
 }
@@ -125,7 +154,12 @@ function shortestCycleLength(graph: SyntheticGraph): number {
 
 // Brute force over every simple cycle in the group: the shortest, ties to the
 // lexicographically smallest sequence rotated to start at its smallest member.
-function bruteForceWitness(graph: SyntheticGraph, members: string[]): string[] {
+// With `canStart`, only cycles whose smallest member it accepts count.
+function bruteForceWitness(
+  graph: SyntheticGraph,
+  members: string[],
+  canStart: (id: string) => boolean = () => true,
+): string[] {
   const inGroup = new Set(members);
   const successors = new Map<string, string[]>();
   for (const [from, to] of graph.edges) {
@@ -150,7 +184,7 @@ function bruteForceWitness(graph: SyntheticGraph, members: string[]): string[] {
       if (next > start && !path.includes(next)) extend([...path, next]);
     }
   };
-  for (const start of [...members].sort()) extend([start]);
+  for (const start of [...members].sort()) if (canStart(start)) extend([start]);
   return best!;
 }
 
@@ -271,6 +305,83 @@ describe('findCycles: groups and witnesses', () => {
       ['a', 'b'],
     );
     expect(findCycles(input(graph), RUNTIME)).toEqual([]);
+  });
+});
+
+describe('findCycles: loose nodes', () => {
+  it('a group made only of loose nodes is not reported; one with another node is', () => {
+    const graph = withLoose(
+      graphOf([
+        ['x', 'y'],
+        ['y', 'x'],
+        ['a', 'l'],
+        ['l', 'a'],
+      ]),
+      new Set(['x', 'y', 'l']),
+    );
+    expect(findCycles(input(graph), RUNTIME).map((cycle) => cycle.members)).toEqual([['a', 'l']]);
+  });
+
+  it('the witness passes through a node that is not loose even when a loose loop is shorter; such nodes come first', () => {
+    // p and q import each other; u reaches p and q comes back to u.
+    const graph = withLoose(
+      graphOf([
+        ['u', 'p'],
+        ['p', 'q'],
+        ['q', 'p'],
+        ['q', 'u'],
+      ]),
+      new Set(['p', 'q']),
+    );
+    const [cycle] = findCycles(input(graph), RUNTIME);
+
+    expect(cycle.members).toEqual(['u', 'p', 'q']);
+    expect(walk(cycle)).toEqual(['u', 'p', 'q']);
+    expectValidWitness(cycle, graph);
+  });
+
+  it(`above ${OPTIMAL_WITNESS_LIMIT} members the DFS witness passes over a loop of loose nodes`, () => {
+    // a → l00000 → … → l02000 → a, and l00001 → l00000 is a loose loop the walk meets first.
+    const chain = Array.from({ length: OPTIMAL_WITNESS_LIMIT + 1 }, (_, index) =>
+      nodeId('l', index),
+    );
+    const edges: Array<[string, string]> = [
+      ['a', chain[0]],
+      ...chain.slice(1).map((node, index): [string, string] => [chain[index], node]),
+      [chain[chain.length - 1], 'a'],
+      [chain[1], chain[0]],
+    ];
+    const plain = syntheticInput({ nodes: ['a', ...chain], edges });
+    expect(walk(findCycles(input(plain), RUNTIME)[0])).toEqual([chain[0], chain[1]]);
+
+    const graph = withLoose(plain, new Set(chain));
+    const [cycle] = findCycles(input(graph), RUNTIME);
+    expect(cycle.optimal).toBe(false);
+    expect(walk(cycle)).toEqual(['a', ...chain]);
+    expectValidWitness(cycle, graph);
+  });
+
+  it('matches a brute-force search over cycles through a node that is not loose, on 300 random graphs', () => {
+    const ids = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+    const loose = new Set(['e', 'f', 'g']);
+    const anchored = (id: string): boolean => !loose.has(id);
+    let compared = 0;
+    for (let seed = 1; seed <= 300; seed++) {
+      const graph = randomGraph(ids, 0.3, seed);
+      const plain = findCycles(input(syntheticInput(graph)), RUNTIME);
+      const cycles = findCycles(input(withLoose(syntheticInput(graph), loose)), RUNTIME);
+      expect(
+        cycles.map((cycle) => cycle.members),
+        `seed ${seed}`,
+      ).toEqual(plain.map((cycle) => cycle.members).filter((members) => members.some(anchored)));
+      for (const cycle of cycles) {
+        expect(walk(cycle), `seed ${seed}`).toEqual(
+          bruteForceWitness(graph, cycle.members, anchored),
+        );
+        compared += 1;
+      }
+    }
+    expect(compared).toBeGreaterThan(200);
   });
 });
 
@@ -540,13 +651,12 @@ describe('findCycles on the heritage fixture', () => {
 
   it('finds the same cycle between components through the group graph', () => {
     const assignment = assignComponents(parts.ctx, parts.graph.files(), () => ({ type: 'file' }));
-    const component = buildGroupGraph(parts.graph, assignment, 'component', parts.sites);
     const cycles = findCycles(
       {
         level: 'component',
         graphId: parts.graph.id,
         scopeId: 'proj:(repo)',
-        ...groupCycleGraph(component),
+        ...groupCycleGraph(parts.graph, parts.sites, (file) => assignment.componentOf.get(file)),
       },
       RUNTIME,
     );
@@ -558,5 +668,63 @@ describe('findCycles on the heritage fixture', () => {
       ['file:src/cycle-a.ts', 'src/cycle-a.ts', { file: 'src/cycle-b.ts' }],
       ['file:src/cycle-b.ts', 'src/cycle-b.ts', { file: 'src/cycle-a.ts' }],
     ]);
+  });
+});
+
+describe('groupCycleGraph: buckets', () => {
+  it('splits a root bucket into loose files: an entry point and a shared file join no cycle, a leftover file in a real one shows', () => {
+    const users = group('dir:proj:(repo):src/users', 'src/users', 'component');
+    const orders = group('dir:proj:(repo):src/orders', 'src/orders', 'component');
+    const groupOf = groupsByPrefix({
+      'src/users/': users,
+      'src/orders/': orders,
+      '': group('root:proj:(repo)', '(root)', 'component'),
+    });
+    const { graph, sites } = fileGraphOf([
+      ['src/main.ts', 'src/users/a.ts'],
+      ['src/users/a.ts', 'src/config.ts'],
+      ['src/users/b.ts', 'src/helpers.ts'],
+      ['src/helpers.ts', 'src/orders/x.ts'],
+      ['src/orders/x.ts', 'src/users/c.ts'],
+    ]);
+    const cycleGraph = groupCycleGraph(graph, sites, groupOf);
+    const [cycle, ...rest] = findCycles(input(cycleGraph, { level: 'component' }), RUNTIME);
+
+    expect(rest).toEqual([]);
+    expect(cycle.members).toEqual([orders.id, users.id, 'file:src/helpers.ts']);
+    expect(walk(cycle).map((id) => cycleGraph.nameOf(id))).toEqual([
+      'src/orders',
+      'src/users',
+      'src/helpers.ts',
+    ]);
+    expect(cycleGraph.isLoose?.('file:src/main.ts')).toBe(true);
+    expect(cycleGraph.isLoose?.(users.id)).toBe(false);
+    expectValidWitness(cycle, cycleGraph);
+  });
+
+  it('splits the workspace-root package the same way; a node is kept when one of its files is', () => {
+    const a = group('pkg:packages/a', '@demo/a', 'package');
+    const b = group('pkg:packages/b', '@demo/b', 'package');
+    const groupOf = groupsByPrefix({
+      'packages/a/': a,
+      'packages/b/': b,
+      '': group(WORKSPACE_ROOT_PACKAGE, '(workspace-root)', 'package'),
+    });
+    const { graph, sites } = fileGraphOf([
+      ['scripts/seed.ts', 'packages/a/index.ts'],
+      ['packages/a/index.ts', 'scripts/env.ts'],
+      ['packages/a/index.ts', 'scripts/shared.ts'],
+      ['scripts/shared.ts', 'packages/b/index.ts'],
+      ['packages/b/index.ts', 'packages/a/util.ts'],
+    ]);
+    const level = { level: 'package' } as const;
+
+    const cycles = findCycles(input(groupCycleGraph(graph, sites, groupOf), level), RUNTIME);
+    expect(cycles.map((cycle) => cycle.members)).toEqual([[a.id, b.id, 'file:scripts/shared.ts']]);
+
+    const packagesOnly = groupCycleGraph(graph, sites, groupOf, (file) =>
+      file.startsWith('packages/'),
+    );
+    expect(findCycles(input(packagesOnly, level), RUNTIME)).toEqual([]);
   });
 });
