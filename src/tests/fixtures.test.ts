@@ -17,6 +17,7 @@ const REPO_FIXTURES = [
   'feature-frontend',
   'heritage',
   'layered-backend',
+  'leftover-files',
   'multi-app-no-workspaces',
   'nest-cjs',
   'nest-monorepo-paths',

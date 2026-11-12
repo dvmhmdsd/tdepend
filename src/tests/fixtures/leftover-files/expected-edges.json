@@ -1,0 +1,11 @@
+[
+  ["src/format.ts", "src/logger.ts", ["static"], true],
+  ["src/helpers.ts", "src/orders/orders.service.ts", ["static"], true],
+  ["src/logger.ts", "src/format.ts", ["static"], true],
+  ["src/main.ts", "src/users/users.controller.ts", ["static"], true],
+  ["src/orders/orders.service.ts", "src/users/user.model.ts", ["static"], true],
+  ["src/users/users.controller.ts", "src/config.ts", ["static"], true],
+  ["src/users/users.controller.ts", "src/logger.ts", ["static"], true],
+  ["src/users/users.controller.ts", "src/users/users.service.ts", ["static"], true],
+  ["src/users/users.service.ts", "src/helpers.ts", ["static"], true]
+]
