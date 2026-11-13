@@ -5,10 +5,11 @@ import { join } from 'node:path';
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-import { collectFiles, DEFAULT_SKIPS, type CollectResult } from '../files/collectFiles';
+import { collectFiles, type CollectResult } from '../files/collectFiles';
 import { nodeFileSystem } from '../fs';
 import { parseFile } from '../parser/extractSites';
 import { discoverProject } from '../project/discoverProject';
+import { NODE_SKIPS } from './helpers/fixtureGraph';
 
 const FIXTURES = join(process.cwd(), 'src', 'tests', 'fixtures');
 const FIXTURE = join(FIXTURES, 'vite-tanstack-router');
@@ -37,7 +38,7 @@ function collect(
   return collectFiles(discoverProject(FIXTURE), {
     include: options.include ?? [],
     exclude: options.exclude ?? [],
-    presetSkips: options.presetSkips ?? DEFAULT_SKIPS,
+    presetSkips: options.presetSkips ?? NODE_SKIPS,
   });
 }
 
@@ -109,7 +110,7 @@ describe('collectFiles analysis set', () => {
     const result = collectFiles(discoverProject(dir), {
       include: [],
       exclude: [],
-      presetSkips: DEFAULT_SKIPS,
+      presetSkips: NODE_SKIPS,
     });
 
     expect(reasonOf(result, 'ignored-by-gitignore.ts')).toBe('gitignored');
@@ -123,7 +124,9 @@ describe('collectFiles analysis set', () => {
     expect(result.files).toEqual([
       'src/components/button.tsx',
       'src/features/cart/index.ts',
+      'src/features/cart/model.ts',
       'src/main.tsx',
+      'src/shared/x.ts',
     ]);
   });
 
@@ -138,7 +141,7 @@ describe('collectFiles analysis set', () => {
     const result = collectFiles(discoverProject(root), {
       include: [],
       exclude: [],
-      presetSkips: DEFAULT_SKIPS,
+      presetSkips: NODE_SKIPS,
     });
 
     expect(result.files).toEqual(['.eslintrc.js']);
@@ -178,7 +181,7 @@ describe('collectFiles symlinks', () => {
     const result = collectFiles(discoverProject(dir), {
       include: [],
       exclude: [],
-      presetSkips: DEFAULT_SKIPS,
+      presetSkips: NODE_SKIPS,
     });
 
     expect(result.files).toEqual([]);

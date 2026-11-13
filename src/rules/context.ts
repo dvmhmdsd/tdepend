@@ -10,8 +10,9 @@ export interface RuleOutcome {
 // What every rule reads, computed once per evaluation.
 export interface RuleContext {
   input: RuleInput;
+  inScope(instance: RuleInstance, file: string): boolean;
   // Sites whose importing file is in scope, in file, line and column order.
-  sitesIn(scope: RuleInstance['scopeFiles']): SiteRecord[];
+  sitesIn(instance: RuleInstance): SiteRecord[];
   // Analysed files plus resolved targets outside the analysis (excluded files).
   knownFiles: string[];
 }
@@ -19,16 +20,26 @@ export interface RuleContext {
 export function createContext(input: RuleInput): RuleContext {
   const ordered = [...input.sites].sort(compareSiteRecords);
   const targets = input.sites.map(targetFile).filter((file): file is string => file !== null);
+  const projects = new Map<string, string>();
+  const projectOf = (file: string): string => {
+    let id = projects.get(file);
+    if (id === undefined) {
+      id = input.ctx.projectFor(file).id;
+      projects.set(file, id);
+    }
+    return id;
+  };
+  const inScope = (instance: RuleInstance, file: string): boolean =>
+    instance.scope === 'repo' || projectOf(file) === instance.projectId;
   return {
     input,
-    sitesIn: (scope) =>
-      scope === 'repo' ? ordered : ordered.filter((record) => scope.has(record.file)),
+    inScope,
+    sitesIn: (instance) =>
+      instance.scope === 'repo'
+        ? ordered
+        : ordered.filter((record) => inScope(instance, record.file)),
     knownFiles: [...new Set([...input.graph.files(), ...targets])].sort(),
   };
-}
-
-export function inScope(scope: RuleInstance['scopeFiles'], file: string): boolean {
-  return scope === 'repo' || scope.has(file);
 }
 
 export function noMatchWarning(instance: RuleInstance, key: string, globs: string[]): string {

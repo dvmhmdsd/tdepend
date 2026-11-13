@@ -89,14 +89,14 @@ const noCyclesSchema = z.strictObject({
 // `{ id, severity }` changes the severity of a preset rule with that id.
 const overrideSchema = z.strictObject({ id: ruleId, severity: severitySchema });
 
-const definitionSchema = z.discriminatedUnion('type', [
+export const ruleDefinitionSchema = z.discriminatedUnion('type', [
   forbiddenSchema,
   layersSchema,
   privateSchema,
   noCyclesSchema,
 ]);
 
-export const ruleConfigSchema = z.union([definitionSchema, overrideSchema]);
+export const ruleConfigSchema = z.union([ruleDefinitionSchema, overrideSchema]);
 
 export type Severity = z.infer<typeof severitySchema>;
 export type TargetSelector = z.infer<typeof targetSelectorSchema>;
@@ -105,7 +105,7 @@ export type LayersRule = z.infer<typeof layersSchema>;
 export type PrivateRule = z.infer<typeof privateSchema>;
 export type NoCyclesRule = z.infer<typeof noCyclesSchema>;
 export type RuleOverride = z.infer<typeof overrideSchema>;
-export type RuleDefinition = z.infer<typeof definitionSchema>;
+export type RuleDefinition = z.infer<typeof ruleDefinitionSchema>;
 export type RuleConfig = z.infer<typeof ruleConfigSchema>;
 
 export type ViolationKind = 'import' | 'cycle' | 'coverage';
@@ -143,11 +143,12 @@ export interface Violation {
 export type ViolationDraft = Omit<Violation, 'identity' | 'fingerprint'>;
 
 // A user rule has repository scope; a preset rule has one instance per project
-// that activates the preset, scoped to that project's files.
+// that activates the preset, scoped to the files whose nearest project that is.
+// The scope is explicit because the root project's id is also the repository's.
 export interface RuleInstance {
   rule: RuleDefinition;
   projectId: string;
-  scopeFiles: Set<string> | 'repo';
+  scope: 'repo' | 'project';
   origin: 'user' | 'preset';
 }
 

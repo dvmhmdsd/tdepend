@@ -17,7 +17,7 @@ export function evaluateLayers(
     matchers.find(([, matches]) => matches(file))?.[0];
   const banned = bannedPairs(rule);
 
-  const violations = context.sitesIn(instance.scopeFiles).flatMap((record) => {
+  const violations = context.sitesIn(instance).flatMap((record) => {
     const target = targetFile(record);
     const fromLayer = layerOf(record.file);
     if (target === null || fromLayer === undefined) return [];

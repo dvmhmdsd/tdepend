@@ -6,21 +6,6 @@ import { isFile, nodeFileSystem, toPosix, tryStat, type FileSystemLike } from '.
 import { shouldSkipDir } from '../project/gitignore';
 import type { ProjectContext } from '../project/types';
 
-export const DEFAULT_SKIPS = [
-  '**/*.{test,spec}.*',
-  '**/__tests__/**',
-  '**/*.stories.*',
-  '**/*.d.ts',
-  '**/*.d.mts',
-  '**/*.d.cts',
-  '**/*.min.js',
-  '**/dist/**',
-  '**/build/**',
-  '**/coverage/**',
-  '**/public/**',
-  'e2e/**',
-];
-
 export type SkipReason = 'excluded' | 'gitignored' | 'declaration' | 'outside-root';
 
 export interface SkippedEntry {

@@ -1,4 +1,5 @@
 [
   ["src/main.tsx", "src/components/button.tsx", ["side-effect"], true],
-  ["src/main.tsx", "src/features/cart/index.ts", ["side-effect"], true]
+  ["src/main.tsx", "src/features/cart/index.ts", ["side-effect"], true],
+  ["src/shared/x.ts", "src/features/cart/model.ts", ["static"], true]
 ]

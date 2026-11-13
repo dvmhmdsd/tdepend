@@ -84,6 +84,7 @@ describe('packed archive', () => {
         expect(allowedEntry(entry), `unexpected packed entry: ${entry}`).toBe(true);
       }
 
+      expect(entries).toContain('package/dist/presets/index.js');
       expect(entries.some((entry) => entry.includes('/next/'))).toBe(false);
       expect(entries.some((entry) => /tsParser|dependencyGraph|cycleDetector/.test(entry))).toBe(
         false,

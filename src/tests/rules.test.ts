@@ -51,7 +51,7 @@ const external = inputFor('external-policy');
 const userRule = (rule: RuleDefinition): RuleInstance => ({
   rule,
   projectId: REPO_SCOPE,
-  scopeFiles: 'repo',
+  scope: 'repo',
   origin: 'user',
 });
 
@@ -409,19 +409,15 @@ describe('no-cycles', () => {
     ).toHaveLength(5);
   });
 
-  it('a project-scoped instance only sees its own files', () => {
-    const scope = new Set(
-      backend.graph.files().filter((file) => file !== 'src/users/users.service.ts'),
-    );
-    const evaluation = evaluateRules(backend, [
-      {
-        rule: { type: 'no-cycles', id: 'node/no-cycles', level: 'file' },
-        projectId: REPO_SCOPE,
-        scopeFiles: scope,
-        origin: 'preset',
-      },
-    ]);
-    expect(evaluation.violations).toEqual([]);
+  it("a project-scoped instance only sees its own project's files", () => {
+    const instance = (projectId: string): RuleInstance => ({
+      rule: { type: 'no-cycles', id: 'node/no-cycles', level: 'component' },
+      projectId,
+      scope: 'project',
+      origin: 'preset',
+    });
+    expect(evaluateRules(backend, [instance(REPO_SCOPE)]).violations).toHaveLength(1);
+    expect(evaluateRules(backend, [instance('proj:elsewhere')]).violations).toEqual([]);
   });
 });
 
@@ -573,18 +569,16 @@ describe('instances, scopes and warnings', () => {
   it('preset instances are evaluated per project scope; a user rule has repository scope', () => {
     const apps = inputFor('multi-app-no-workspaces');
     const rule = forbiddenModules(['left-pad']);
-    const filesOf = (dir: string) =>
-      new Set(apps.graph.files().filter((file) => file.startsWith(dir)));
-    const preset = (projectId: string, dir: string): RuleInstance => ({
+    const preset = (projectId: string): RuleInstance => ({
       rule,
       projectId,
-      scopeFiles: filesOf(dir),
+      scope: 'project',
       origin: 'preset',
     });
 
     const evaluation = evaluateRules(apps, [
-      preset('proj:apps/admin', 'apps/admin/'),
-      preset('proj:apps/web', 'apps/web/'),
+      preset('proj:apps/admin'),
+      preset('proj:apps/web'),
       userRule(rule),
     ]);
     expect(evaluation.violations.map((violation) => [violation.projectId, violation.from])).toEqual(

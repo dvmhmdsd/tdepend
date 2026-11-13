@@ -1,0 +1,18 @@
+[
+  ["apps/api/src/app.module.ts", "apps/api/src/users/users.module.ts", ["static"], true],
+  ["apps/api/src/main.ts", "apps/api/src/app.module.ts", ["static"], true],
+  ["apps/api/src/users/users.controller.ts", "apps/api/src/common/clock.ts", ["static"], true],
+  [
+    "apps/api/src/users/users.controller.ts",
+    "apps/api/src/users/users.repository.ts",
+    ["static"],
+    false
+  ],
+  [
+    "apps/api/src/users/users.module.ts",
+    "apps/api/src/users/users.controller.ts",
+    ["static"],
+    true
+  ],
+  ["apps/web/src/shared/format.ts", "apps/web/src/features/cart/model.ts", ["static"], true]
+]

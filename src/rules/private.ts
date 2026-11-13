@@ -1,6 +1,6 @@
 import { isBucket } from '../components/assignComponents';
 import type { Group } from '../components/types';
-import { inScope, noMatchWarning, type RuleContext, type RuleOutcome } from './context';
+import { noMatchWarning, type RuleContext, type RuleOutcome } from './context';
 import { importViolation } from './identity';
 import { globMatcher, targetFile } from './selectors';
 import type { PrivateRule, RuleInstance } from './types';
@@ -18,12 +18,12 @@ export function evaluatePrivate(
   const { componentOf } = context.input.assignment;
   const exceptFrom = globMatcher(rule.exceptFrom);
   const isPrivate = privacyTest(rule);
-  const scopeFiles = [...componentOf.keys()].filter((file) => inScope(instance.scopeFiles, file));
+  const scopeFiles = [...componentOf.keys()].filter((file) => context.inScope(instance, file));
   // Files whose component can own private files at all.
   const checked = scopeFiles.filter((file) => !isFileComponent(componentOf.get(file)!));
   const perFile = checked.length < scopeFiles.length;
 
-  const violations = context.sitesIn(instance.scopeFiles).flatMap((record) => {
+  const violations = context.sitesIn(instance).flatMap((record) => {
     const target = targetFile(record);
     const owner = target === null ? undefined : componentOf.get(target);
     const importer = componentOf.get(record.file);

@@ -31,6 +31,7 @@ const REPO_FIXTURES = [
   'pnpm-monorepo-declaration-dir',
   'pnpm-monorepo-unbuilt',
   'pnpm-settings-only',
+  'preset-projects',
   'tanstack-start',
   'vite-tanstack-router',
   'vite-tanstack-router-missing-gen',
