@@ -1,18 +1,22 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { DEFAULT_SKIPS, collectFiles, type CollectResult } from '../../files/collectFiles';
+import { collectFiles, type CollectResult } from '../../files/collectFiles';
 import type { FileSystemLike } from '../../fs';
 import { buildFileGraph, type BuildGraphResult } from '../../graph/buildFileGraph';
 import type { FileEdge } from '../../graph/fileGraph';
 import type { Compiler } from '../../parser/loadsTarget';
 import type { EdgeKind } from '../../parser/types';
+import { builtInPresets } from '../../presets';
 import { discoverProject } from '../../project/discoverProject';
 import type { ProjectContext } from '../../project/types';
 import { createResolver } from '../../resolver/createResolver';
 import type { ResolveOptions, Resolver } from '../../resolver/types';
 
 export const FIXTURES = join(process.cwd(), 'src', 'tests', 'fixtures');
+
+// The skips every project gets, whatever else its presets add.
+export const NODE_SKIPS = builtInPresets.node.skips ?? [];
 
 export type EdgeTuple = [string, string, EdgeKind[], boolean];
 
@@ -41,7 +45,7 @@ export function buildFixtureParts(name: string, options: FixtureOptions = {}): F
   const files = collectFiles(ctx, {
     include: [],
     exclude: [],
-    presetSkips: DEFAULT_SKIPS,
+    presetSkips: NODE_SKIPS,
     fs: options.fs,
   });
   const resolver = createResolver(

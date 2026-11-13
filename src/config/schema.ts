@@ -7,19 +7,24 @@ const coverageSchema = z.strictObject({
   allowUnmatched: z.array(z.string()).default([]),
 });
 
+const directoryStrategy = z.strictObject({
+  type: z.literal('directory'),
+  patterns: z.array(z.string()),
+});
+const nestModuleStrategy = z.strictObject({ type: z.literal('nest-module') });
+const fileStrategy = z.strictObject({ type: z.literal('file') });
+
+// A preset sets a strategy; the user config may add coverage to it.
+export const componentStrategySchema = z.discriminatedUnion('type', [
+  directoryStrategy,
+  nestModuleStrategy,
+  fileStrategy,
+]);
+
 export const componentsSchema = z.discriminatedUnion('type', [
-  z.strictObject({
-    type: z.literal('directory'),
-    patterns: z.array(z.string()),
-    coverage: coverageSchema.optional(),
-  }),
-  z.strictObject({
-    type: z.literal('nest-module'),
-    coverage: coverageSchema.optional(),
-  }),
-  z.strictObject({
-    type: z.literal('file'),
-  }),
+  directoryStrategy.extend({ coverage: coverageSchema.optional() }),
+  nestModuleStrategy.extend({ coverage: coverageSchema.optional() }),
+  fileStrategy,
 ]);
 
 const resolveSchema = z.strictObject({

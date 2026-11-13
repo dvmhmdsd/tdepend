@@ -18,7 +18,14 @@ export function assignComponents(
   files: string[],
   strategyFor: (project: Project) => ComponentStrategy,
 ): Assignment {
-  const moduleDirs = new Set(files.filter((file) => NEST_MODULE.test(file)).map(posixDirname));
+  const moduleDirs = new Map<string, Set<string>>();
+  for (const file of files) {
+    if (!NEST_MODULE.test(file)) continue;
+    const projectId = ctx.projectFor(file).id;
+    const dirs = moduleDirs.get(projectId) ?? new Set<string>();
+    dirs.add(posixDirname(file));
+    moduleDirs.set(projectId, dirs);
+  }
   const locators = new Map<string, Locator>();
   const components = new Map<string, Group>();
   const packages = new Map<string, Group>();
@@ -37,7 +44,8 @@ export function assignComponents(
     const pkg = ctx.packageFor(file);
     let locate = locators.get(project.id);
     if (locate === undefined) {
-      locate = createLocator(project, strategyFor(project), moduleDirs, warnings);
+      const dirs = moduleDirs.get(project.id) ?? new Set<string>();
+      locate = createLocator(project, strategyFor(project), dirs, warnings);
       locators.set(project.id, locate);
     }
 
@@ -107,12 +115,30 @@ function directoryLocator(project: Project, patterns: string[], warnings: Set<st
   };
 }
 
+// `moduleDirs` holds this project's module directories. The outermost one with
+// modules below it is the application's root module, AppModule in src/. Its
+// subfolders without a module of their own, such as src/common, hold shared
+// code: counted as part of AppModule, which imports every feature module, they
+// would put AppModule in a cycle with every feature that uses them. They go to
+// the root bucket instead, and the root module keeps only its own folder.
 function nestModuleLocator(project: Project, moduleDirs: Set<string>): Locator {
+  const ancestorsOf = (dir: string): string[] =>
+    dir === project.dir ? [] : [...ancestorsBelow(dir, project.dir), project.dir];
+  const roots = new Set(
+    [...moduleDirs].filter(
+      (dir) =>
+        !ancestorsOf(dir).some((ancestor) => moduleDirs.has(ancestor)) &&
+        [...moduleDirs].some((other) => ancestorsOf(other).includes(dir)),
+    ),
+  );
+
   return (file) => {
     const owner = [...ancestorsBelow(file, project.dir), project.dir].find((dir) =>
       moduleDirs.has(dir),
     );
-    return owner === undefined ? null : directoryPlacement(project, owner);
+    if (owner === undefined) return null;
+    if (roots.has(owner) && posixDirname(file) !== owner) return null;
+    return directoryPlacement(project, owner);
   };
 }
 

@@ -63,7 +63,7 @@ export function userRuleInstances(rules: RuleConfig[]): RuleInstance[] {
   return rules.filter(isDefinition).map((rule) => ({
     rule,
     projectId: REPO_SCOPE,
-    scopeFiles: 'repo',
+    scope: 'repo',
     origin: 'user',
   }));
 }

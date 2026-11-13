@@ -1,0 +1,7 @@
+{
+  "name": "@demo/api",
+  "private": true,
+  "dependencies": {
+    "@nestjs/core": "^11.0.0"
+  }
+}

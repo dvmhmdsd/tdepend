@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto';
-
 import { groupLookup } from '../components/groupGraph';
 import {
   fileCycleGraph,
@@ -9,7 +7,7 @@ import {
   type CycleGraph,
   type CycleLevel,
 } from '../cycles/findCycles';
-import { inScope, type RuleContext, type RuleOutcome } from './context';
+import type { RuleContext, RuleOutcome } from './context';
 import { finishViolation, severityOf, siteData } from './identity';
 import type { CycleWitness, NoCyclesRule, RuleInstance, Violation } from './types';
 
@@ -19,7 +17,7 @@ export function evaluateNoCycles(
   rule: NoCyclesRule,
   context: RuleContext,
 ): RuleOutcome {
-  const graph = scopedGraph(rule.level, instance.scopeFiles, context);
+  const graph = scopedGraph(rule.level, instance, context);
   if (graph === null) return { violations: [], warnings: [] };
 
   const cycles = findCycles(
@@ -51,11 +49,11 @@ interface ScopedGraph {
 // package graph, so a package-level rule has nothing to check.
 function scopedGraph(
   level: CycleLevel,
-  scope: RuleInstance['scopeFiles'],
+  instance: RuleInstance,
   context: RuleContext,
 ): ScopedGraph | null {
   const { input } = context;
-  const keep = (file: string): boolean => inScope(scope, file);
+  const keep = (file: string): boolean => context.inScope(instance, file);
   if (level === 'file') {
     return { cycleGraph: fileCycleGraph(input.graph, input.sites, keep), nameOf: (id) => id };
   }
@@ -69,12 +67,10 @@ function scopedGraph(
   return { cycleGraph, nameOf: cycleGraph.nameOf };
 }
 
-// The cache scope is the set of files itself: the root project and the whole
-// repository share the id `proj:(repo)` but not their files.
+// The root project and the whole repository share the id `proj:(repo)` but not
+// their files, so the scope kind is part of the cache key.
 function scopeIdOf(instance: RuleInstance): string {
-  if (instance.scopeFiles === 'repo') return 'repo';
-  const files = JSON.stringify([...instance.scopeFiles].sort());
-  return `files:${createHash('sha1').update(files).digest('hex')}`;
+  return instance.scope === 'repo' ? 'repo' : `project:${instance.projectId}`;
 }
 
 function cycleViolation(

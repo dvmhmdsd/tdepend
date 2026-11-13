@@ -1,0 +1,7 @@
+{
+  "name": "@demo/web",
+  "private": true,
+  "dependencies": {
+    "react": "^19.0.0"
+  }
+}

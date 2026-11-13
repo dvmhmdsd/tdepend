@@ -17,7 +17,7 @@ export function evaluateForbidden(
   const kinds = rule.kinds === undefined ? null : new Set(rule.kinds);
 
   const violations = context
-    .sitesIn(instance.scopeFiles)
+    .sitesIn(instance)
     .filter(
       (record) =>
         from(record.file) &&

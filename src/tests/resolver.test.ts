@@ -4,12 +4,13 @@ import { dirname, isAbsolute, join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { DEFAULT_SKIPS, collectFiles } from '../files/collectFiles';
+import { collectFiles } from '../files/collectFiles';
 import { parseFile } from '../parser/extractSites';
 import { discoverProject } from '../project/discoverProject';
 import type { ProjectContext } from '../project/types';
 import { createResolver } from '../resolver/createResolver';
 import type { Resolution, ResolveOptions, Resolver } from '../resolver/types';
+import { NODE_SKIPS } from './helpers/fixtureGraph';
 
 const FIXTURES = join(process.cwd(), 'src', 'tests', 'fixtures');
 
@@ -42,7 +43,7 @@ function harness(name: string, options: Partial<ResolveOptions> = {}): Harness {
   const collected = collectFiles(ctx, {
     include: [],
     exclude: [],
-    presetSkips: DEFAULT_SKIPS,
+    presetSkips: NODE_SKIPS,
   });
   const resolver = createResolver(ctx, new Set(collected.files), {
     aliases: {},
