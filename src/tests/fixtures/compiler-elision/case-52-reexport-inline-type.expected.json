@@ -1,0 +1,12 @@
+{
+  "id": "case-52",
+  "slug": "reexport-inline-type",
+  "file": "case-52-reexport-inline-type.ts",
+  "options": {},
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true,
+  "tscProgram": false
+}
