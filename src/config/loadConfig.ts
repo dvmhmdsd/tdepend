@@ -24,8 +24,6 @@ export function loadConfig(opts: LoadConfigOptions): LoadConfigResult {
   }
 
   const raw = readRawConfig(configFile);
-  rejectLegacyConfig(raw);
-  rejectUnavailableKeys(raw);
 
   const parsed = configSchema.safeParse(raw);
   if (!parsed.success) {
@@ -33,35 +31,6 @@ export function loadConfig(opts: LoadConfigOptions): LoadConfigResult {
   }
 
   return { config: parsed.data, configFile };
-}
-
-const LEGACY_KEYS = ['rootDir', 'ci', 'analysis'];
-
-const UNAVAILABLE_KEYS = ['rules', 'components', 'baseline'];
-
-function rejectLegacyConfig(raw: unknown): void {
-  if (!isRecord(raw)) return;
-  if (LEGACY_KEYS.some((key) => key in raw)) {
-    throw new ConfigError(
-      "This looks like a tdepend 0.2 config. See 'Migrating from 0.2' in the README.",
-    );
-  }
-}
-
-function rejectUnavailableKeys(raw: unknown): void {
-  if (!isRecord(raw)) return;
-  const present = UNAVAILABLE_KEYS.filter((key) => key in raw);
-  const metrics = raw.metrics;
-  if (isRecord(metrics) && 'thresholds' in metrics) present.push('metrics.thresholds');
-  if (present.length > 0) {
-    throw new ConfigError(
-      `Config key(s) not available in this version: ${present.join(', ')}. Remove them until the release that adds them.`,
-    );
-  }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 function findConfigFile(opts: LoadConfigOptions): string | null {

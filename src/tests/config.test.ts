@@ -48,23 +48,31 @@ describe('loadConfig', () => {
     }
   });
 
-  it('rejects a 0.2 config with the migration message', () => {
+  it('rejects keys it does not know, naming them', () => {
     writeConfig({ rootDir: 'src', ci: {} });
 
-    expect(() => loadConfig({ cwd: dir })).toThrow(
-      "This looks like a tdepend 0.2 config. See 'Migrating from 0.2' in the README.",
-    );
+    expect(() => loadConfig({ cwd: dir })).toThrow('Unknown config key(s): rootDir, ci');
   });
 
-  it('rejects keys whose feature has not shipped yet', () => {
-    writeConfig({ rules: [], baseline: 'b.json', metrics: { thresholds: { distance: 0.5 } } });
+  it('accepts rules, components, baseline and metrics.thresholds', () => {
+    writeConfig({
+      rules: [{ id: 'nest/layers', severity: 'warn' }],
+      components: { type: 'nest-module', coverage: { requireAll: true } },
+      baseline: 'b.json',
+      metrics: { abstractness: 'jdepend', thresholds: { distance: 0.5 } },
+    });
 
-    expect(() => loadConfig({ cwd: dir })).toThrow(
-      'not available in this version: rules, baseline, metrics.thresholds',
-    );
+    const { config } = loadConfig({ cwd: dir });
+    expect(config.rules).toEqual([{ id: 'nest/layers', severity: 'warn' }]);
+    expect(config.components).toEqual({
+      type: 'nest-module',
+      coverage: { requireAll: true, allowUnmatched: [] },
+    });
+    expect(config.baseline).toBe('b.json');
+    expect(config.metrics).toEqual({ abstractness: 'jdepend', thresholds: { distance: 0.5 } });
 
-    writeConfig({ metrics: { abstractness: 'jdepend' } });
-    expect(loadConfig({ cwd: dir }).config.metrics.abstractness).toBe('jdepend');
+    writeConfig({ rules: [{ type: 'no-cycles', id: 'C', level: 'galaxy' }] });
+    expect(() => loadConfig({ cwd: dir })).toThrow('Invalid config');
   });
 
   it('accepts an exclude entry starting with !', () => {
@@ -85,7 +93,9 @@ describe('loadConfig', () => {
   });
 
   it('accepts components directory, nest-module and file and rejects package', () => {
-    expect(componentsSchema.safeParse({ type: 'directory', patterns: ['src/*'] }).success).toBe(true);
+    expect(componentsSchema.safeParse({ type: 'directory', patterns: ['src/*'] }).success).toBe(
+      true,
+    );
     expect(componentsSchema.safeParse({ type: 'nest-module' }).success).toBe(true);
     expect(componentsSchema.safeParse({ type: 'file' }).success).toBe(true);
     expect(componentsSchema.safeParse({ type: 'package' }).success).toBe(false);

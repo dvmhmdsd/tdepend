@@ -24,7 +24,7 @@ describe('toSerializable', () => {
     expect(first).not.toContain('timestamp');
 
     const parsed = JSON.parse(first);
-    expect(parsed.version).toBe(1);
+    expect(parsed.version).toBe(2);
     expect(Array.isArray(parsed.files)).toBe(true);
     expect(Array.isArray(parsed.edges)).toBe(true);
     expect(Array.isArray(parsed.sites)).toBe(true);
@@ -62,7 +62,7 @@ describe('exportToFile', () => {
     await exportToFile(await analyze({ root: join(FIXTURES, 'nest-cjs') }), out);
 
     const written = JSON.parse(readFileSync(out, 'utf-8'));
-    expect(written.version).toBe(1);
+    expect(written.version).toBe(2);
     expect(written.files).toContain('src/user.controller.ts');
   });
 });
