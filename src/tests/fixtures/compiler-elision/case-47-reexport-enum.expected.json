@@ -1,0 +1,12 @@
+{
+  "id": "case-47",
+  "slug": "reexport-enum",
+  "file": "case-47-reexport-enum.ts",
+  "options": {},
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true,
+  "tscProgram": true
+}

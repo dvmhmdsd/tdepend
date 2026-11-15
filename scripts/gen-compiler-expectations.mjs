@@ -19,7 +19,8 @@ import ts from 'typescript';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE_DIR = join(HERE, '..', 'src', 'tests', 'fixtures', 'compiler-elision');
 const DEP_FILE = join(FIXTURE_DIR, 'dep.ts');
-const DEP_SPECIFIER = /['"]\.\/dep['"]/;
+// `./dep` or a helper beside it, such as `./dep-barrel`.
+const DEP_SPECIFIER = /['"]\.\/dep(?:-[a-z]+)?['"]/;
 
 // `options` is the fixture's own JSON-friendly shape. `program: true` also
 // emits with a full TypeScript program, where cross-file facts (const enum
@@ -142,6 +143,14 @@ const CASES = [
     ext: 'tsx',
     options: { jsx: 'react', reactNamespace: 'Preact' },
   },
+  { id: 'case-44', slug: 'reexport-type-alias', ext: 'ts', program: true },
+  { id: 'case-45', slug: 'reexport-mixed', ext: 'ts', program: true },
+  { id: 'case-46', slug: 'reexport-class', ext: 'ts', program: true },
+  { id: 'case-47', slug: 'reexport-enum', ext: 'ts', program: true },
+  { id: 'case-48', slug: 'reexport-renamed', ext: 'ts', program: true },
+  { id: 'case-49', slug: 'reexport-two-hop', ext: 'ts', program: true },
+  { id: 'case-50', slug: 'import-then-export', ext: 'ts', program: true },
+  { id: 'case-51', slug: 'reexport-star-types', ext: 'ts', program: true },
 ];
 
 function fileNameOf(entry) {

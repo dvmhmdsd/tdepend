@@ -1,0 +1,1 @@
+export { Klass } from './dep';

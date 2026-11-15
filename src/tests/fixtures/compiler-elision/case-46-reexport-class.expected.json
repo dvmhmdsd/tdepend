@@ -1,0 +1,12 @@
+{
+  "id": "case-46",
+  "slug": "reexport-class",
+  "file": "case-46-reexport-class.ts",
+  "options": {},
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true,
+  "tscProgram": true
+}

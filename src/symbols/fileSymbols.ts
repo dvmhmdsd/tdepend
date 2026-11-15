@@ -12,6 +12,9 @@ export interface LocalDeclaration {
   // interface that extends something is data only if its bases are too, which
   // the index decides once names are resolved.
   dataShape: boolean;
+  // Every declaration of the name is an interface or a type alias, so it has no
+  // runtime value at all.
+  typeOnly: boolean;
   // `type T = X` or `type T = ns.X`: the name the alias stands for, split on dots.
   aliasOf?: string[];
 }
@@ -42,6 +45,9 @@ export interface FileSymbols {
   exports: Map<string, ExportSource>;
   stars: ImportSite[];
   heritage: HeritageEntry[];
+  // Namespaces are not declarations here, but one that shares a name with an
+  // interface gives that name a runtime value.
+  namespaces: Set<string>;
 }
 
 // When one name has several declarations (merging, or a type and a value with
@@ -72,6 +78,7 @@ export function collectFileSymbols(parsed: ParsedFile): FileSymbols {
     exports: new Map(),
     stars: [],
     heritage: [],
+    namespaces: new Set(),
   };
   for (const site of parsed.sites) addSiteBindings(symbols, site);
   const visitor = new StatementVisitor(parsed.sourceFile, symbols);
@@ -123,7 +130,9 @@ class StatementVisitor {
       const isAsyncFunction = hasModifier(statement, ts.SyntaxKind.AsyncKeyword);
       this.declare(statement, statement.name?.text ?? 'default', 'function', { isAsyncFunction });
     } else if (ts.isVariableStatement(statement)) this.variableStatement(statement);
-    else if (ts.isExpressionStatement(statement)) this.commonJsExports(statement);
+    else if (ts.isModuleDeclaration(statement) && ts.isIdentifier(statement.name)) {
+      this.symbols.namespaces.add(statement.name.text);
+    } else if (ts.isExpressionStatement(statement)) this.commonJsExports(statement);
   }
 
   // `export { a, b as c }` with no `from`: names this file already has.
@@ -227,6 +236,7 @@ class StatementVisitor {
         kind,
         isAsyncFunction: extra.isAsyncFunction === true,
         dataShape: extra.dataShape === true,
+        typeOnly: isTypeKind(kind),
         ...(extra.aliasOf === undefined ? {} : { aliasOf: extra.aliasOf }),
       });
       return;
@@ -235,9 +245,14 @@ class StatementVisitor {
       existing.kind = kind;
     existing.isAsyncFunction ||= extra.isAsyncFunction === true;
     existing.dataShape &&= extra.dataShape === true;
+    existing.typeOnly &&= isTypeKind(kind);
     // A merged name is no longer a plain alias of one other name.
     delete existing.aliasOf;
   }
+}
+
+function isTypeKind(kind: DeclKind): boolean {
+  return kind === 'interface' || kind === 'type';
 }
 
 function isFunctionType(type: ts.TypeNode | undefined): boolean {

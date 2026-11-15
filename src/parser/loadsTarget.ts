@@ -10,6 +10,7 @@ export interface LoadVerdict {
   loadsTarget: boolean;
   loadsTargetBy: LoadReason;
   reason: string;
+  valueUsesAreExports?: boolean;
 }
 
 const TS_FAMILY = /\.(ts|tsx|mts|cts)$/i;
@@ -108,6 +109,13 @@ function classifyStatic(
 
   const facts = fileFacts(parsed.sourceFile, options);
   if (site.bindings.some((binding) => facts.valueNames.has(binding.local))) {
+    const exportsOnly = site.bindings.every((binding) => !facts.nonExportNames.has(binding.local));
+    if (exportsOnly) {
+      return {
+        ...retained('a binding is re-exported, and the parser cannot tell a type from a value'),
+        valueUsesAreExports: true,
+      };
+    }
     return retained('at least one binding is used as a value');
   }
   return erased('usage', 'every binding is used only in a type position, or not at all');
@@ -154,6 +162,8 @@ function exportDeclarationOf(site: ImportSite): ts.ExportDeclaration | undefined
 
 interface FileFacts {
   valueNames: Set<string>;
+  // Value uses other than a name in a local `export { … }` list.
+  nonExportNames: Set<string>;
 }
 
 const FILE_FACTS = new WeakMap<ts.SourceFile, FileFacts>();
@@ -175,11 +185,16 @@ const JSX_PRAGMA = /@jsx(?:Frag)?\s+([\w$]+)/gi;
 // result conservative.
 function collectFileFacts(sourceFile: ts.SourceFile, options: ts.CompilerOptions): FileFacts {
   const valueNames = new Set<string>();
+  const nonExportNames = new Set<string>();
   const metadataOn =
     options.experimentalDecorators === true && options.emitDecoratorMetadata === true;
   let hasJsx = false;
 
   const record = (name: string): void => {
+    valueNames.add(name);
+    nonExportNames.add(name);
+  };
+  const recordExport = (name: string): void => {
     valueNames.add(name);
   };
 
@@ -191,7 +206,7 @@ function collectFileFacts(sourceFile: ts.SourceFile, options: ts.CompilerOptions
       const clause = node.exportClause;
       if (clause !== undefined && ts.isNamedExports(clause) && !node.isTypeOnly) {
         for (const element of clause.elements) {
-          if (!element.isTypeOnly) record((element.propertyName ?? element.name).text);
+          if (!element.isTypeOnly) recordExport((element.propertyName ?? element.name).text);
         }
       }
       return;
@@ -233,7 +248,7 @@ function collectFileFacts(sourceFile: ts.SourceFile, options: ts.CompilerOptions
 
   if (hasJsx) jsxFactoryNames(sourceFile, options).forEach(record);
 
-  return { valueNames };
+  return { valueNames, nonExportNames };
 }
 
 // swc keeps the factory import under every `jsx` setting, even the automatic

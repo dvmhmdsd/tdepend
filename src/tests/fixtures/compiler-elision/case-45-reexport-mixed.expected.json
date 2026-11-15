@@ -1,0 +1,12 @@
+{
+  "id": "case-45",
+  "slug": "reexport-mixed",
+  "file": "case-45-reexport-mixed.ts",
+  "options": {},
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true,
+  "tscProgram": true
+}

@@ -1,0 +1,12 @@
+{
+  "id": "case-48",
+  "slug": "reexport-renamed",
+  "file": "case-48-reexport-renamed.ts",
+  "options": {},
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true,
+  "tscProgram": false
+}

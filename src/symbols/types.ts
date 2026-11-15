@@ -43,5 +43,8 @@ export interface SymbolIndex {
   exports(file: string): ExportInfo[];
   heritage(): HeritageRef[];
   resolveExport(file: string, name: string): Declaration | null;
+  // The exported name resolves to declarations that are all interfaces or type
+  // aliases, with nothing of the same name at runtime.
+  isTypeOnlyExport(file: string, name: string): boolean;
   unresolvedHeritageCount: number;
 }

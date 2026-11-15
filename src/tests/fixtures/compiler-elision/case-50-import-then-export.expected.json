@@ -1,0 +1,12 @@
+{
+  "id": "case-50",
+  "slug": "import-then-export",
+  "file": "case-50-import-then-export.ts",
+  "options": {},
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true,
+  "tscProgram": false
+}
