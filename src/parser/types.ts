@@ -6,7 +6,7 @@ export type SiteForm = 'declaration' | 'type-context';
 
 export type UnsupportedReason = 'non-literal' | 'shadowed-require' | 'jsdoc-import-type';
 
-export type LoadReason = 'syntax' | 'usage' | 'retained';
+export type LoadReason = 'syntax' | 'usage' | 'retained' | 'symbols';
 
 export interface ImportBinding {
   local: string;
@@ -26,6 +26,9 @@ export interface ImportSite {
   loadsTarget?: boolean;
   loadsTargetBy?: LoadReason;
   loadReason?: string;
+  // A kept static import whose bindings are used as values only by this file's
+  // own `export { … }` lists, so it loads only if one of them is a value.
+  valueUsesAreExports?: boolean;
   node: ts.Node;
 }
 

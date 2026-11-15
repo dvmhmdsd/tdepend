@@ -1,0 +1,12 @@
+{
+  "id": "case-49",
+  "slug": "reexport-two-hop",
+  "file": "case-49-reexport-two-hop.ts",
+  "options": {},
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true,
+  "tscProgram": false
+}

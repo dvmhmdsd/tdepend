@@ -65,6 +65,13 @@ export function buildSymbolIndex(
     },
     heritage: () => [...heritage],
     resolveExport: (file, name) => declarationOf(bindings.resolveExport(file, name)),
+    isTypeOnlyExport: (file, name) => {
+      const declaration = declarationOf(bindings.resolveExport(file, name));
+      if (declaration === null) return false;
+      const symbols = tables.get(declaration.file)?.symbols;
+      const local = symbols?.declarations.get(declaration.name);
+      return local?.typeOnly === true && !symbols!.namespaces.has(declaration.name);
+    },
     unresolvedHeritageCount: heritage.filter((ref) => ref.resolved === null).length,
   };
 }

@@ -77,7 +77,6 @@ interface SiteCollector {
   unsupported: SiteRecord[];
   ignoredByDir: Map<string, number>;
   selfImports: Set<string>;
-  edges: Map<string, FileEdge>;
 }
 
 // The per-file context a site is judged against.
@@ -127,7 +126,7 @@ export function buildFileGraph(
   }
 
   return {
-    graph: new FileGraph(files.files, [...collector.edges.values()]),
+    graph: fileGraphOf(files.files, sites),
     sites,
     report: buildReport(collector, files),
     parsed,
@@ -147,6 +146,7 @@ function collectSite(
   site.loadsTarget = verdict.loadsTarget;
   site.loadsTargetBy = verdict.loadsTargetBy;
   site.loadReason = verdict.reason;
+  if (verdict.valueUsesAreExports === true) site.valueUsesAreExports = true;
 
   const resolution = resolver.resolve(site, parsedFile);
   const record: SiteRecord = { file, site, resolution };
@@ -158,23 +158,19 @@ function collectSite(
     recordIgnoredDirectory(collector.ignoredByDir, file, site.specifier);
   }
 
-  addGraphEdge(collector, file, site, resolution);
+  if (edgeTarget(resolution) === file) collector.selfImports.add(file);
   return record;
 }
 
-function addGraphEdge(
-  collector: SiteCollector,
-  file: string,
-  site: ImportSite,
-  resolution: Resolution,
-): void {
-  const target = edgeTarget(resolution);
-  if (target === null) return;
-  if (target === file) {
-    collector.selfImports.add(file);
-    return;
+// The graph over the analysed files: one edge per importing and imported file
+// pair, holding every site between them. A file importing itself has no edge.
+export function fileGraphOf(files: string[], sites: SiteRecord[]): FileGraph {
+  const edges = new Map<string, FileEdge>();
+  for (const { file, site, resolution } of sites) {
+    const target = edgeTarget(resolution);
+    if (target !== null && target !== file) mergeEdge(edges, file, target, site, resolution);
   }
-  mergeEdge(collector.edges, file, target, site, resolution);
+  return new FileGraph(files, [...edges.values()]);
 }
 
 function recordIgnoredDirectory(
@@ -206,7 +202,6 @@ function emptyCollector(): SiteCollector {
     unsupported: [],
     ignoredByDir: new Map(),
     selfImports: new Set(),
-    edges: new Map(),
   };
 }
 

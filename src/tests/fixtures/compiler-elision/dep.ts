@@ -48,3 +48,18 @@ export default function React(): void {
 export function box<T>(value: T): T {
   return value;
 }
+
+export type Alias = {
+  readonly alias: string;
+};
+
+export class Klass {
+  readonly klass = true;
+}
+
+export enum Color {
+  Red = 'red',
+}
+
+export const Shape = { kind: 'shape' };
+export type Shape = typeof Shape;

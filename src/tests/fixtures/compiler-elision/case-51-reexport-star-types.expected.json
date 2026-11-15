@@ -1,0 +1,12 @@
+{
+  "id": "case-51",
+  "slug": "reexport-star-types",
+  "file": "case-51-reexport-star-types.ts",
+  "options": {},
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true,
+  "tscProgram": true
+}

@@ -1,0 +1,12 @@
+{
+  "id": "case-44",
+  "slug": "reexport-type-alias",
+  "file": "case-44-reexport-type-alias.ts",
+  "options": {},
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true,
+  "tscProgram": false
+}

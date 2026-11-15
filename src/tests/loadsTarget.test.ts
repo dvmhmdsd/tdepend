@@ -73,8 +73,10 @@ function parsedCase(slug: string): {
   const options = optionsFrom(entry.options);
   const text = readFileSync(join(FIXTURE, entry.file), 'utf-8');
   const parsed = parseFile(entry.file, text, options);
+  // Cases import `./dep` or a helper beside it, such as `./dep-barrel`.
   const site = parsed.sites.find(
-    (candidate) => candidate.specifier === './dep' && candidate.unsupported === undefined,
+    (candidate) =>
+      /^\.\/dep(?:-[a-z]+)?$/.test(candidate.specifier) && candidate.unsupported === undefined,
   );
   if (site === undefined) throw new Error(`no ./dep import site in ${entry.file}`);
   return { parsed, site, options };
