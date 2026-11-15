@@ -101,7 +101,7 @@ describe('runCli', () => {
     const code = await runCli(['analyze', '--root', fixture('nest-cjs'), '--format', 'json'], io());
 
     expect(code).toBe(0);
-    expect(JSON.parse(stdout).version).toBe(1);
+    expect(JSON.parse(stdout).version).toBe(2);
   });
 
   it('analyze --strict-resolution returns 2 when an import is unresolved', async () => {

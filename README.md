@@ -2,16 +2,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-tdepend's goal is to make TypeScript architecture contracts executable. Version 0.3 delivers the foundation those contracts need: an import graph that matches the TypeScript compiler.
+tdepend checks a TypeScript codebase against architecture rules you write down, such as "controllers don't import repositories" or "no import cycles between modules", and fails the build when an import breaks one.
 
-It finds your projects, workspace packages and `tsconfig` files, then resolves every import through TypeScript's own resolver. For each import it records:
-
-- where it is, by file, line and column;
-- what form it takes, such as a static import, a `require` or a type-only import;
-- what it resolves to, in one of ten classes;
-- whether it really loads its target at runtime, or the compiler erases it.
-
-Architecture rules, metrics, cycles and baselines are not in this version. See [Migrating from 0.2](#migrating-from-02).
+It resolves every import through TypeScript's own resolver, so its import graph matches the compiler. It knows which imports really load their target at runtime and which ones the compiler erases. On that graph it groups files into components and packages, reports coupling metrics and import cycles, and evaluates rules. A baseline lets you adopt a rule in a codebase that already breaks it.
 
 ## Installation
 
@@ -19,243 +12,272 @@ tdepend needs Node 22.12 or later.
 
 ```bash
 npm install --save-dev tdepend
-# or
-pnpm add --save-dev tdepend
 ```
 
-## Usage
+## Quick start
 
 ```bash
-tdepend analyze                     # report on the current directory
-tdepend analyze --root path/to/repo # report on another directory
-tdepend explain src/main.tsx        # show every import in one file
+tdepend init        # write a starter tdepend.config.json
+tdepend analyze     # components, metrics, cycles and how every import resolved
+tdepend check       # evaluate the rules; exit 1 on any error
+tdepend baseline    # accept today's violations, so only new ones fail
 ```
 
-Both commands take `--root <dir>` and `--config <path>`. `tdepend --version` prints the version and `tdepend --help` lists the commands.
+Every command takes `--root <dir>` and `--config <path>`. tdepend reads the checkout as it is, so it works before a build and usually before `npm install`.
 
-tdepend reads the checkout as it is, so it works before a build and usually before `pnpm install`. The exception is a `tsconfig` whose `extends` names a package or a generated file. That target must exist, or tdepend exits 2 and names the config. tdepend never writes to the analysed repo unless you point `--export` there.
+## Commands
 
 ### `tdepend analyze`
+
+Prints components with their metrics, cycles between components, and the resolution report. It exits 0, or 2 when the config, a source file or the root can't be read.
 
 | Option | Meaning |
 |---|---|
 | `-f, --format <text\|json>` | Output format, `text` by default |
-| `-e, --export <path>` | Also write the full result to a JSON file |
+| `-e, --export <path>` | Also write the full result as JSON |
 | `--strict-resolution` | Exit 2 when any import is unresolved |
 
-The exit code is 0, or 2 on a config or parse error, or when the analysis root doesn't exist. With `--strict-resolution` it is also 2 when an import is unresolved, which makes that flag the one gate this version offers for CI.
-
-The text report looks like this:
-
 ```text
-Files: 6
-Import sites: 10
-Edges: 2
+Components (3):
+                Ca  Ce     I     A     D
+  src/orders     2   1  0.33  0.00  0.67
+  src/users      2   2  0.50  0.00  0.50
+  (root)         1   2  0.67  0.00  0.33
 
-Sites by class:
-  builtin: 1
-  asset: 2
-  virtual: 1
-  internal: 2
-  workspace: 0
-  excluded: 2
-  external: 0
-  ignored: 0
-  unsupported: 0
-  unresolved: 2
-
-Unresolved imports (2):
-  src/main.tsx:6  ./missing
-  src/main.tsx:9  left-pad
-
-Ignored (gitignored targets): 0
-
-Unsupported imports: 0
-
-Self-imports: 0
-Files outside every tsconfig: 2
+Component cycles (1):
+  src/orders → src/users → src/orders
+    src/orders/orders.controller.ts:2:33  '@users/repositories/users.repository' → src/users/repositories/users.repository.ts
+    src/users/users.service.ts:3:31  '../orders/orders.service' → src/orders/orders.service.ts
 ```
 
-**Files** is the analysis set. **Import sites** counts every import statement or call. **Edges** counts the file pairs connected by at least one site.
+In a workspace it also prints package metrics and package cycles. Each import gets one class:
 
-Every site gets exactly one class:
+| Class | Meaning |
+|---|---|
+| `internal` | A file in the analysis set, in the same package |
+| `workspace` | A file in the analysis set, in another workspace package |
+| `external` | A package from `node_modules`, or one declared in `package.json` but not installed |
+| `builtin` | A Node built-in; `fs` and `node:fs` are the same module |
+| `excluded` | A repo file outside the analysis set, such as a test |
+| `asset` | A stylesheet, image, font, JSON or Markdown file, or anything with a `?query` |
+| `virtual` | A `virtual:` or `~icons/` module, or a `resolve.virtual` pattern |
+| `ignored` | Unresolved, but matched by `resolve.ignoreUnresolved` or gitignored |
+| `unsupported` | A form tdepend can't follow, such as `import(name)` |
+| `unresolved` | None of the above; usually a broken import |
 
-| Class | Meaning | Adds a graph edge |
-|---|---|---|
-| `builtin` | A Node built-in; `fs` and `node:fs` count as the same module | No |
-| `virtual` | A `virtual:` or `~icons/` module, or a `resolve.virtual` pattern | No |
-| `asset` | A stylesheet, image, font, JSON or Markdown file, or anything with a `?query` | No |
-| `internal` | A file in the analysis set, in the same package | Yes |
-| `workspace` | A file in the analysis set, in a different workspace package | Yes |
-| `excluded` | A repo file outside the analysis set, such as a test or generated file | No |
-| `external` | A package from `node_modules`, or one declared in `package.json` but not installed | No |
-| `ignored` | An unresolved import that matches `resolve.ignoreUnresolved`, or whose target is gitignored | No |
-| `unsupported` | A form tdepend can't follow, such as `import(name)`, a shadowed `require`, or a JSDoc import type | No |
-| `unresolved` | None of the above; this is usually a broken import | No |
-
-The report also counts self-imports and files that no `tsconfig` covers. When a package is declared but missing, it adds a line asking whether `node_modules` is installed. Discovery warnings, such as a compiler option TypeScript 5.9 doesn't know, are listed at the end.
+Only `internal` and `workspace` imports are edges of the graph.
 
 ### `tdepend explain <file>`
 
-`explain` is the debugging tool. It prints one row per import: position, kind, class, target and the runtime verdict with its reason.
+Prints every import in one file: position, kind, class, target, and whether it loads its target at runtime, with the reason.
 
 ```text
 1:8  side-effect  internal  '@/components/button' -> src/components/button.tsx  loads (retained): a side-effect import is evaluated and every compiler keeps it
-3:8  side-effect  asset  './styles.css' -> -  loads (retained): a side-effect import is evaluated and every compiler keeps it
-7:27  static  excluded  './routeTree.gen' -> src/routeTree.gen.ts  loads (retained): at least one binding is used as a value
-10:16  static  builtin  'node:fs' -> node:fs  loads (retained): at least one binding is used as a value
 ```
 
-The verdict rule is conservative: an import loads its target unless `tsc`, esbuild and swc would all drop it. A reported runtime edge may therefore be one a single compiler would erase, but an import reported as erased is erased by every listed compiler.
+An import loads its target unless every compiler in `compilers` drops it.
 
-The word in brackets is the kind of evidence. `syntax` means the form alone decides, as with `import type`. `usage` means no binding is used as a value. `retained` means a compiler keeps the import.
+### `tdepend check`
 
-### JSON export
+Evaluates the rules and prints the violations the baseline doesn't cover.
 
-`--export <path>` and `--format json` write the same versioned document. It has no timestamp and every list is sorted, so two runs on the same inputs produce byte-identical output.
+| Option | Meaning |
+|---|---|
+| `-b, --baseline <path>` | Baseline file to compare with, instead of the config's `baseline` |
+| `-f, --format <text\|json>` | Output format, `text` by default |
+| `--strict-resolution` | Exit 2 when any import is unresolved |
+| `--path-prefix <prefix>` | Put this before every path in the output |
+
+```text
+Errors (1):
+  src/a.controller.ts:3:19  LAYER-CONTROLLER-REPO-001  Controllers call services, not repositories.  ('./a.repository' → src/a.repository.ts)
+
+1 error, 0 warnings.
+```
+
+| Exit code | When |
+|---|---|
+| 0 | No error the baseline doesn't cover. Warnings never fail a run |
+| 1 | At least one error the baseline doesn't cover |
+| 2 | A config, parse or baseline error, a missing root, or an unresolved import under `--strict-resolution` |
+
+### `tdepend baseline`
+
+Writes every current violation into the baseline file (the config's `baseline`, or `tdepend-baseline.json` next to the config). With `--prune` it only lowers counts and removes entries nothing matches any more; it never accepts a new violation.
+
+### `tdepend init`
+
+Detects your projects and presets and writes a starter config. It refuses to overwrite an existing one unless you pass `--force`.
 
 ```json
 {
-  "version": 1,
-  "files": ["src/main.ts", "src/util.ts"],
-  "edges": [
-    { "from": "src/main.ts", "to": "src/util.ts", "runtime": true, "mapped": false, "kinds": ["static"] }
-  ],
-  "sites": [
-    {
-      "file": "src/main.ts",
-      "specifier": "./util",
-      "line": 1,
-      "column": 22,
-      "kind": "static",
-      "form": "declaration",
-      "deferred": false,
-      "unsupported": null,
-      "loadsTarget": true,
-      "loadsTargetBy": "retained",
-      "class": "internal",
-      "reason": null,
-      "target": { "file": "src/util.ts" },
-      "mapped": null,
-      "requested": null
-    }
-  ],
-  "report": { "...": "class counts, unresolved, ignored and unsupported sites, warnings" }
+  "presets": ["auto"],
+  "exclude": [],
+  "rules": [{ "id": "nest/layers", "severity": "warn" }]
 }
 ```
 
-Paths are relative to the analysis root and use `/` on every platform. Lines and columns start at 1, and the column points at the opening quote of the specifier. An edge is `runtime` when at least one of its sites loads the target, and `mapped` when a declared output path such as `dist/index.d.ts` was mapped back to its source file.
+The `rules` entries switch on the detected presets' recommended rules as warnings.
+
+## Presets
+
+A project is the root folder, every folder with a `package.json` that declares dependencies, and every workspace package. Each project gets presets from its own `package.json`. `"presets": ["auto"]` turns on `node` plus every built-in preset that matches; listing names instead uses only those.
+
+| Preset | When | Skips | Components | Rules |
+|---|---|---|---|---|
+| `node` | always | tests, specs, `__tests__`, stories, `.d.ts`, `*.min.js`, `dist`, `build`, `coverage`, `public`, `e2e` | `src/*` | `node/no-cycles`: file cycles, warn |
+| `nest` | `@nestjs/core` | `test/**` | one per `*.module.ts` folder | `nest/layers`, off |
+| `react` | `react` without `next` | stories | `src/features/*`, then `src/*` | `react/shared-no-feature-import`, off |
+| `express` | `express` | | `src/*` | |
+| `fastify` | `fastify` | | `src/*` | |
+
+- `nest/layers`: controllers don't import repositories; repositories don't import services or controllers; DTOs don't import services or repositories.
+- `react/shared-no-feature-import`: `src/{components,lib,shared,utils}/**` doesn't import `src/features/**`.
+
+Turn an off rule on with `{ "id": "nest/layers", "severity": "warn" }` in `rules`. A preset rule runs separately in each project that has it, on that project's files.
+
+When several presets set components for one project, `nest` wins, then `react`, then `express` or `fastify`, then `node`. A `components` setting in your config applies to every project.
+
+### Your own preset
+
+```js
+// acme-preset.js
+const { definePreset } = require('tdepend/presets');
+
+module.exports = definePreset({
+  name: 'acme',
+  detect: (project) => project.dependencies.has('@nestjs/core'),
+  rules: [{ type: 'no-cycles', id: 'acme/no-module-cycles', level: 'component' }],
+});
+```
+
+List it as `"presets": ["auto", "./acme-preset.js"]`. A preset may set `extends`, `skips`, `ignoreUnresolved`, `components`, `rules` (on), `recommended` (off) and `repoRules` (run once for the whole repository). Its paths are relative to the project.
+
+## Components
+
+| `components.type` | A file belongs to |
+|---|---|
+| `directory` | The folder matched by the first of `patterns` that matches one of its ancestors, such as `["src/features/*", "src/*"]` |
+| `nest-module` | The nearest folder with a `*.module.ts`. The outermost module keeps only its own folder, so shared folders such as `src/common` belong to no component |
+| `file` | Itself |
+
+Files that match nothing go to their project's `(root)` group. With `"coverage": { "requireAll": true, "allowUnmatched": ["src/main.ts"] }` inside `components`, each of those files is a `components/coverage` violation. In a workspace, every file also belongs to its nearest workspace package.
+
+## Rules
+
+Every rule has an `id`, a `severity` (`error` by default, `warn` or `off`) and a `message`. Paths are relative to the repository root.
+
+**`forbidden`**: no import from `from` files to `to` targets.
+
+```json
+{ "type": "forbidden", "id": "LAYER-CONTROLLER-REPO-001",
+  "from": ["src/**/*.controller.ts"], "to": ["src/**/*.repository.ts"],
+  "message": "Controllers call services, not repositories." }
+```
+
+`to` takes `{ "files": [...] }`, `{ "modules": [...] }` or both. A `modules` pattern matches a package or Node built-in by name: `@prisma/client` matches only that module, `@prisma/client/*` only its subpaths, and `node:fs` also matches `fs`. Optional: `exceptFrom`, `exceptTo`, `kinds`, and `runtimeOnly: true` to skip imports that never run.
+
+**`layers`**: forbidden imports between named layers. A file belongs to the first layer it matches.
+
+```json
+{ "type": "layers", "id": "LAYERS-001",
+  "layers": { "controllers": ["src/**/*.controller.ts"], "repositories": ["src/**/*.repository.ts"] },
+  "disallow": { "controllers": [{ "layer": "repositories", "message": "Go through a service." }] } }
+```
+
+**`private`**: files only their own component may import, relative to the component's folder. Either list the private files with `paths`, or list the public entry files with `public` and everything else is private.
+
+```json
+{ "type": "private", "id": "REPO-PRIVATE-001", "paths": ["**/repositories/**"],
+  "message": "Use the owning module's service instead of its repository." }
+```
+
+**`no-cycles`**: no import cycles at `file`, `component` or `package` level.
+
+```json
+{ "type": "no-cycles", "id": "MODULE-NO-CYCLE-001", "level": "component" }
+```
+
+Each cycle is one violation, located at the first import of its shortest loop. `ignoreTypeOnly` (default `true`) leaves out imports that never run; `ignoreLazyImports: true` leaves out `import()` inside functions.
+
+## Metrics
+
+For every file, component and package: **Ca** (how many depend on it), **Ce** (how many it depends on), instability **I** = Ce / (Ca + Ce), abstractness **A**, and distance from the main sequence **D** = |A + I − 1|.
+
+With `"abstractness": "implemented"` (the default), an interface or abstract class is abstract only when something implements or extends it, and fields-only declarations such as DTOs are left out of A. With `"jdepend"`, every interface, type alias and abstract class is abstract. `"thresholds": { "distance": 0.5 }` lists the components further than that from the main sequence. Metrics never change the exit code.
+
+## Baselines
+
+The baseline lists accepted violations with a count:
+
+```json
+{ "version": 1, "entries": [
+  { "fingerprint": "…", "kind": "import", "ruleId": "NO-DB", "projectId": "proj:(repo)", "severity": "error",
+    "from": "src/a.ts", "target": { "file": "src/db.ts" }, "specifier": "./db", "count": 2 }
+] }
+```
+
+- A violation is matched by rule, project, severity, file, target and specifier, not by line.
+- With `count: 2`, two current matches are accepted and a third is reported.
+- A cycle is accepted when its members are a subset of one cycle entry's members.
+- Entries with fewer matches than their count are listed as *no longer reported*.
+
+## JSON output
+
+`analyze --format json` and `--export` write one sorted document with no timestamp: files, edges, import sites, components and packages, metrics, cycles, the effective rule instances with their severities, and the resolution report. Paths are relative to the root; lines and columns start at 1. `check --format json` prints the actionable and accepted violations, the entries no longer reported, and warnings.
 
 ## Library API
 
-The package exports four functions, plus the types of the values they return.
-
 ```ts
-import { analyze, explainFile, exportToFile, toSerializable } from 'tdepend';
+import { analyze, check, init, explainFile, exportToFile, toSerializable } from 'tdepend';
+import { definePreset, builtInPresets } from 'tdepend/presets';
 
-const result = await analyze({ root: '.' });
-
-const { edges, report } = toSerializable(result);
-console.log(`${edges.length} edges, ${report.unresolved.length} unresolved imports`);
-
-await exportToFile(result, 'graph.json');
-
-const rows = await explainFile({ root: '.', file: 'src/main.tsx' });
-for (const row of rows) {
-  console.log(row.specifier, row.class, row.loadsTarget);
-}
+const report = await check({ root: '.' });
+console.log(report.actionable.length);
 ```
 
-- `analyze(options?)` runs the whole pipeline. Its options are `root`, `config` and `typeOnly`.
-- `explainFile(options)` takes the same options plus `file`, and returns one row per import.
-- `toSerializable(result)` returns the JSON document above.
-- `exportToFile(result, path)` writes that document to a file.
+`analyze` and `check` take `root`, `config` and `typeOnly`; `check` also takes `baseline` and `strictResolution`.
 
 ## Configuration
 
-tdepend looks for `tdepend.config.json` in the analysis root, or uses `--config <path>`. A config is optional. These are the keys that work in 0.3, with their defaults:
+`tdepend.config.json` in the root, or `--config <path>`. Every key is optional; these are the defaults:
 
 ```json
 {
   "root": ".",
+  "presets": ["auto"],
   "include": [],
   "exclude": [],
   "typeOnly": "usage",
   "compilers": ["tsc", "esbuild", "swc"],
-  "resolve": { "aliases": {}, "virtual": [], "ignoreUnresolved": [] }
+  "resolve": { "aliases": {}, "virtual": [], "ignoreUnresolved": [] },
+  "metrics": { "abstractness": "implemented", "thresholds": { "distance": null } },
+  "rules": [],
+  "baseline": null
 }
 ```
 
-- **`root`** is the analysis root, relative to `--root` or the working directory.
-- **`include`** replaces discovery when it isn't empty. It takes root-relative globs, and `exclude` still applies.
-- **`exclude`** adds to the built-in skips below. An entry starting with `!` removes an earlier pattern, so `"!**/public/**"` keeps `public/`.
-- **`typeOnly`** is `usage` or `syntax`. With `syntax`, every static import counts as loading its target, however its bindings are used.
-- **`compilers`** names the compilers you really use. In 0.3 it only changes empty `import {} from` statements, which `tsc` erases and swc keeps.
-- **`resolve.aliases`** is for aliases that exist only in a bundler config, as a prefix map relative to the importing file's project, such as `{ "@/": "src/" }`. Aliases in `tsconfig` `paths` need no config.
-- **`resolve.virtual`** lists extra patterns to treat as `virtual`.
-- **`resolve.ignoreUnresolved`** lists unresolved imports to class as `ignored`.
+- **`components`**: one component strategy for every project; without it, presets decide.
+- **`include`**: root-relative globs that replace discovery. The skips still apply.
+- **`exclude`**: added to the presets' skips. `"!pattern"` switches a preset skip off, as in `"!**/public/**"`.
+- **`typeOnly`**: `usage` treats an import as type-only when its names are only used as types; `syntax` only when it is written `import type`.
+- **`compilers`**: the compilers your build uses. With `["tsc"]`, tdepend also drops `export { T } from` when every name is a type, as tsc does.
+- **`resolve.aliases`**: aliases that exist only in a bundler config, such as `{ "@/": "src/" }`. `tsconfig` `paths` need no config.
+- **`baseline`**: the baseline file, relative to the config.
 
-The built-in skips are test and spec files, `__tests__`, stories, declaration files, `*.min.js`, `public` and a root `e2e` folder. Gitignored files are skipped too. Directories named `node_modules`, `dist`, `build`, `out` and `coverage`, and dot directories such as `.storybook`, are never walked, so `include` can't reach them. A `tsconfig` that lists a file in a dot directory still brings that file in.
+Gitignored files and `node_modules`, `dist`, `build`, `out`, `coverage` and dot directories are skipped. An unknown key exits 2.
 
-`exclude` also applies to `tsconfig` files, so a deliberately broken one under a fixtures folder can be left out.
+## Supported layouts
 
-The keys `presets` and `metrics.abstractness` are accepted and have no effect yet. An unknown key exits 2, and so do `rules`, `components`, `baseline` and `metrics.thresholds`, which belong to later releases.
-
-## Migrating from 0.2
-
-Version 0.3 is a rewrite, with no compatibility layer. The old graph missed aliases, re-exports, dynamic imports and workspace packages, so it was replaced rather than patched.
-
-- **Metrics and cycles are gone for now.** 0.3 reports the graph only. Coupling metrics, cycles and rules arrive in 0.4, through a new `check` command with baselines. Comparing a pull request against its base arrives in 0.5.
-- **Removed exports:** `analyzeWithConfig`, `exportToJson`, `DependencyGraph`, `detectCycles`, `computeAllMetrics`, `parseProject` and `scanFiles`. The public API is now the four functions above.
-- **Removed CLI option:** `--ci`. Use `--format json` for machine output and `--strict-resolution` to fail a build.
-- **Removed config keys:** `rootDir`, `ci`, `analysis` and `metrics.enabled`. `metrics.thresholds` returns in 0.4.
-- **Old configs are rejected.** A config with `rootDir`, `ci` or `analysis` exits 2 with this message:
-
-  ```text
-  This looks like a tdepend 0.2 config. See 'Migrating from 0.2' in the README.
-  ```
-
-  Start again from the keys in [Configuration](#configuration).
-- **Node 22.12 or later** is now required.
-
-## Support levels
-
-| Level | Layouts |
-|---|---|
-| **Supported**, covered by a fixture | NestJS with CommonJS or NodeNext, NestJS monorepos using `paths`, Next.js apps, Vite with TanStack Router, TanStack Start, Express in CommonJS JavaScript, Fastify in ESM, plain Node libraries, feature-based frontends, pnpm and npm workspaces including unbuilt and bundler-built packages, several apps without a workspace config, nested projects |
-| **Configured manually** | Aliases that exist only in a bundler config, through `resolve.aliases`; unusual layouts, through `include` |
-| **Experimental** | Yarn workspaces without Plug'n'Play, which use the same `package.json` form as npm but have no fixture of their own |
-| **Unsupported** | Vue, Svelte and Astro single-file components, Yarn Plug'n'Play, non-literal dynamic loading |
+NestJS (CommonJS, NodeNext, monorepos with `paths`), Next.js, Vite with TanStack Router, TanStack Start, Express, Fastify, plain Node libraries, pnpm and npm workspaces (built or not), and several apps without a workspace config. Vue, Svelte and Astro components and Yarn Plug'n'Play are not supported.
 
 ## Development
 
 ```bash
 pnpm install
-pnpm run clean      # remove dist
-pnpm run build      # clean, then compile
-pnpm test           # run the test suite
-pnpm run typecheck  # check the sources and the tests
-```
-
-## Project structure
-
-```text
-src/
-  api/        analyze, explainFile, exportToFile, toSerializable
-  cli/        command line entry point
-  config/     config schema and loading
-  files/      the analysis set
-  graph/      the file graph and resolution report
-  output/     the text report
-  parser/     import sites and runtime-load classification
-  project/    projects, workspace packages, tsconfigs, gitignore rules
-  resolver/   TypeScript resolution, workspace host, classification
-  tests/      tests and fixtures
-  types/      public result types
-  fs.ts       file system port
-  errors.ts   errors that exit 2
-  index.ts    library entry point
-scripts/      regenerates the compiler fixture expectations
+pnpm test
+pnpm run typecheck
+pnpm run build
 ```
 
 ## License
