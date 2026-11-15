@@ -10,7 +10,7 @@ export interface LoadVerdict {
   loadsTarget: boolean;
   loadsTargetBy: LoadReason;
   reason: string;
-  valueUsesAreExports?: boolean;
+  erasableIfTypes?: boolean;
 }
 
 const TS_FAMILY = /\.(ts|tsx|mts|cts)$/i;
@@ -78,7 +78,13 @@ function classifyReExport(
     return retained('an empty re-export is kept by esbuild and swc, and by native ESM');
   }
 
-  return retained('an unmarked named re-export is kept until every name is known to be a type');
+  const verdict = retained(
+    'an unmarked named re-export is kept until every name is known to be a type',
+  );
+  // tsc keeps a JavaScript file's re-exports, and every re-export under
+  // verbatimModuleSyntax, exactly as written.
+  if (TS_FAMILY.test(parsed.file) && !keepsVerbatim(options)) verdict.erasableIfTypes = true;
+  return verdict;
 }
 
 function classifyStatic(
@@ -113,7 +119,7 @@ function classifyStatic(
     if (exportsOnly) {
       return {
         ...retained('a binding is re-exported, and the parser cannot tell a type from a value'),
-        valueUsesAreExports: true,
+        erasableIfTypes: true,
       };
     }
     return retained('at least one binding is used as a value');

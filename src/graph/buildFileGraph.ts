@@ -146,7 +146,7 @@ function collectSite(
   site.loadsTarget = verdict.loadsTarget;
   site.loadsTargetBy = verdict.loadsTargetBy;
   site.loadReason = verdict.reason;
-  if (verdict.valueUsesAreExports === true) site.valueUsesAreExports = true;
+  if (verdict.erasableIfTypes === true) site.erasableIfTypes = true;
 
   const resolution = resolver.resolve(site, parsedFile);
   const record: SiteRecord = { file, site, resolution };

@@ -31,19 +31,22 @@ export function eraseTypeReexports(
 
 function erasureReason(record: SiteRecord, index: SymbolIndex): string | null {
   const { site, resolution } = record;
-  if (site.loadsTarget !== true || site.bindings.length === 0) return null;
+  if (site.loadsTarget !== true || site.erasableIfTypes !== true || site.bindings.length === 0) {
+    return null;
+  }
   if (resolution.class !== 'internal' && resolution.class !== 'workspace') return null;
   const target = resolution.target;
   if (target === null || !('file' in target)) return null;
 
-  const onlyTypes = site.bindings.every((binding) =>
-    index.isTypeOnlyExport(target.file, binding.imported),
+  // A name marked `type` in the clause is erased whatever it names.
+  const onlyTypes = site.bindings.every(
+    (binding) => binding.typeOnly || index.isTypeOnlyExport(target.file, binding.imported),
   );
   if (!onlyTypes) return null;
   if (site.kind === 're-export') {
     return 're-exports only types, and tsc is the only compiler, so tsc erases it';
   }
-  if (site.kind === 'static' && site.valueUsesAreExports === true) {
+  if (site.kind === 'static') {
     return 'imports only types that this file re-exports, and tsc is the only compiler, so tsc erases it';
   }
   return null;

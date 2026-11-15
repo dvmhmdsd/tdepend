@@ -117,6 +117,34 @@ describe('eraseTypeReexports', () => {
     }
   });
 
+  it('a name marked `type` in the clause counts as a type whatever it names', () => {
+    expect(loads(erase('compiler-elision', TSC).after, 'case-52-reexport-inline-type.ts')).toEqual([
+      false,
+    ]);
+  });
+
+  it('a re-export in a JavaScript file, or under verbatimModuleSyntax, keeps loading', () => {
+    const js = tempProject({
+      'src/dep.ts': DEP,
+      'src/barrel.js': "export { T } from './dep';",
+      'tsconfig.json': JSON.stringify({ compilerOptions: { allowJs: true }, include: ['src'] }),
+    });
+    expect(loads(erase('', TSC, js).after, 'src/barrel.js')).toEqual([true]);
+
+    const verbatim = tempProject({
+      'src/dep.ts': DEP,
+      'src/barrel.ts': "export { T } from './dep';",
+      'src/reexported.ts': "import { T } from './dep';\nexport { T };",
+      'tsconfig.json': JSON.stringify({
+        compilerOptions: { verbatimModuleSyntax: true, module: 'esnext' },
+        include: ['src'],
+      }),
+    });
+    const after = erase('', TSC, verbatim).after;
+    expect(loads(after, 'src/barrel.ts')).toEqual([true]);
+    expect(loads(after, 'src/reexported.ts')).toEqual([true]);
+  });
+
   it("the default compilers and ['tsc', 'esbuild'] keep every case loading", () => {
     for (const compilers of [
       ['tsc', 'esbuild', 'swc'],
@@ -161,7 +189,7 @@ describe('eraseTypeReexports', () => {
       .map((name) => JSON.parse(readFileSync(join(dir, name), 'utf-8')))
       .filter((entry) => entry.id === 'case-12' || Number(entry.id.slice(5)) >= 44);
 
-    expect(cases).toHaveLength(9);
+    expect(cases).toHaveLength(10);
     for (const entry of cases) {
       expect([entry.id, loads(after, entry.file)]).toEqual([entry.id, [entry.tscProgram]]);
     }

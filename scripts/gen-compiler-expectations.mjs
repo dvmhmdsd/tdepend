@@ -151,6 +151,7 @@ const CASES = [
   { id: 'case-49', slug: 'reexport-two-hop', ext: 'ts', program: true },
   { id: 'case-50', slug: 'import-then-export', ext: 'ts', program: true },
   { id: 'case-51', slug: 'reexport-star-types', ext: 'ts', program: true },
+  { id: 'case-52', slug: 'reexport-inline-type', ext: 'ts', program: true },
 ];
 
 function fileNameOf(entry) {

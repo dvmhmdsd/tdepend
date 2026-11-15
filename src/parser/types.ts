@@ -26,9 +26,11 @@ export interface ImportSite {
   loadsTarget?: boolean;
   loadsTargetBy?: LoadReason;
   loadReason?: string;
-  // A kept static import whose bindings are used as values only by this file's
-  // own `export { … }` lists, so it loads only if one of them is a value.
-  valueUsesAreExports?: boolean;
+  // Kept only because the parser can't tell a type from a value: an unmarked
+  // re-export, or an import whose only value uses are this file's own
+  // `export { … }` lists, in a TypeScript file without verbatimModuleSyntax.
+  // tsc erases it when every name is a type.
+  erasableIfTypes?: boolean;
   node: ts.Node;
 }
 
