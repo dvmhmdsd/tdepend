@@ -4,7 +4,7 @@ import { resolve as resolvePath } from 'node:path';
 import { Command, CommanderError, Option } from 'commander';
 
 import { analyze } from '../api/analyze';
-import { baselinePath, check, checkAnalysis } from '../api/check';
+import { baselineFile, check, checkAnalysis } from '../api/check';
 import { exportToFile } from '../api/export';
 import { init } from '../api/init';
 import { pruneBaseline, readBaseline, saveBaseline, writeBaseline } from '../baseline/baseline';
@@ -12,7 +12,6 @@ import { explainFile, type ExplainRow } from '../api/explain';
 import { toSerializable } from '../api/serialization';
 import { ConfigError, ParseError } from '../errors';
 import { formatAnalyzeText } from '../output/analyzeText';
-import { exitCodeFor } from '../output/exitCode';
 import { formatJson, formatText } from '../output/formatCheck';
 import type { Target } from '../resolver/types';
 import { packageVersion } from '../version';
@@ -40,10 +39,7 @@ interface CheckCliOptions extends CommonOptions {
   baseline?: string;
   format?: 'text' | 'json';
   strictResolution?: boolean;
-  pathPrefix?: string;
 }
-
-const DEFAULT_BASELINE = 'tdepend-baseline.json';
 
 /**
  * Runs the CLI and resolves to its exit code.
@@ -144,20 +140,16 @@ function buildProgram(io: CliIo, setExitCode: (code: ExitCode) => void): Command
         .default('text'),
     )
     .option('--strict-resolution', 'exit 2 when any import is unresolved')
-    .option('--path-prefix <prefix>', 'put before every path in the output', '')
     .action(async (options: CheckCliOptions) => {
       const report = await check({
         root: rootFor(options),
         config: configFor(options),
         baseline:
           options.baseline === undefined ? undefined : resolvePath(io.cwd, options.baseline),
+        strictResolution: options.strictResolution === true,
       });
-      io.stdout(
-        options.format === 'json'
-          ? formatJson(report)
-          : formatText(report, { pathPrefix: options.pathPrefix ?? '' }),
-      );
-      setExitCode(exitCodeFor(report, { strictResolution: options.strictResolution === true }));
+      io.stdout(options.format === 'json' ? formatJson(report) : formatText(report));
+      setExitCode(report.exitCode);
     });
 
   program
@@ -169,8 +161,7 @@ function buildProgram(io: CliIo, setExitCode: (code: ExitCode) => void): Command
     .action(async (options: CommonOptions & { prune?: boolean }) => {
       const root = rootFor(options);
       const result = await analyze({ root, config: configFor(options) });
-      const path =
-        baselinePath({ root }, result) ?? resolvePath(result.configDir, DEFAULT_BASELINE);
+      const path = baselineFile(result);
       const { violations } = checkAnalysis(result, null);
       if (options.prune === true) {
         const before = readBaseline(path);

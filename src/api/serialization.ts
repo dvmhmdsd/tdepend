@@ -51,7 +51,9 @@ function groupFiles(result: AnalysisResult): Map<string, string[]> {
   const files = new Map<string, string[]>();
   const add = (group: Group | null | undefined, file: string): void => {
     if (group === null || group === undefined) return;
-    files.set(group.id, [...(files.get(group.id) ?? []), file]);
+    const list = files.get(group.id);
+    if (list === undefined) files.set(group.id, [file]);
+    else list.push(file);
   };
   const packageOf =
     result.assignment.packages.length === 0 ? null : groupLookup(result.assignment, 'package');

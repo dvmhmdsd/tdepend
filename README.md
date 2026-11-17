@@ -86,7 +86,6 @@ Evaluates the rules and prints the violations the baseline doesn't cover.
 | `-b, --baseline <path>` | Baseline file to compare with, instead of the config's `baseline` |
 | `-f, --format <text\|json>` | Output format, `text` by default |
 | `--strict-resolution` | Exit 2 when any import is unresolved |
-| `--path-prefix <prefix>` | Put this before every path in the output |
 
 ```text
 Errors (1):
@@ -103,7 +102,7 @@ Errors (1):
 
 ### `tdepend baseline`
 
-Writes every current violation into the baseline file (the config's `baseline`, or `tdepend-baseline.json` next to the config). With `--prune` it only lowers counts and removes entries nothing matches any more; it never accepts a new violation.
+Writes every current violation into the baseline file: the config's `baseline`, or `tdepend-baseline.json` next to the config. `check` reads the same file. With `--prune` it only lowers counts and removes entries nothing matches any more; it never accepts a new violation.
 
 ### `tdepend init`
 
@@ -236,7 +235,7 @@ const report = await check({ root: '.' });
 console.log(report.actionable.length);
 ```
 
-`analyze` and `check` take `root`, `config` and `typeOnly`; `check` also takes `baseline` and `strictResolution`.
+`analyze` and `check` take `root`, `config` and `typeOnly`; `check` also takes `baseline` and `strictResolution`, and its report's `exitCode` is the one the CLI exits with.
 
 ## Configuration
 

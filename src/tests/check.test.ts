@@ -64,7 +64,6 @@ const CONTROLLER_RULE = {
 };
 
 const NEST = join(FIXTURES, 'nest-cjs');
-const plain = { pathPrefix: '' };
 
 describe('check', () => {
   it('check on nest-cjs with LAYER-CONTROLLER-REPO-001 returns actionable violations and exit 1', async () => {
@@ -74,20 +73,24 @@ describe('check', () => {
       ['LAYER-CONTROLLER-REPO-001', 'src/admin.controller.ts'],
     ]);
     expect(report.known).toEqual([]);
-    expect(exitCodeFor(report, { strictResolution: false })).toBe(1);
+    expect(report.exitCode).toBe(1);
   });
 
   it('text line format', async () => {
     const report = await check({ root: NEST, config: writeConfig({ rules: [CONTROLLER_RULE] }) });
-    const text = formatText(report, plain);
+    const text = formatText(report);
 
     expect(text).toContain(
       "  src/admin.controller.ts:1:32  LAYER-CONTROLLER-REPO-001  Controllers call services, not repositories.  ('./user.repository' → src/user.repository.ts)",
     );
     expect(text).toContain('1 error, 0 warnings.');
-    expect(formatText(report, { pathPrefix: 'apps/api/' })).toContain(
-      "apps/api/src/admin.controller.ts:1:32  LAYER-CONTROLLER-REPO-001  Controllers call services, not repositories.  ('./user.repository' → apps/api/src/user.repository.ts)",
-    );
+  });
+
+  it('the library applies strictResolution to the exit code, as the CLI does', async () => {
+    const root = join(FIXTURES, 'vite-tanstack-router');
+    expect((await check({ root })).exitCode).toBe(0);
+    expect((await check({ root, strictResolution: true })).exitCode).toBe(2);
+    expect(await runCli(['check', '--root', root, '--strict-resolution'], io())).toBe(2);
   });
 
   it('coverage text line has no line:col', async () => {
@@ -96,7 +99,7 @@ describe('check', () => {
     });
     const report = await check({ root: join(FIXTURES, 'layered-backend'), config });
 
-    expect(formatText(report, plain)).toContain(
+    expect(formatText(report)).toContain(
       '  src/config.ts  components/coverage  File belongs to no declared component. Add it to a component pattern or to `allowUnmatched`.',
     );
   });
@@ -145,7 +148,7 @@ describe('check', () => {
       toBaselineFile([coverage, deepImport]),
     );
 
-    const text = formatText(report, plain);
+    const text = formatText(report);
     expect(text).toContain(`  ${coverage.from}  components/coverage  `);
     expect(text).toContain(
       "  apps/web/src/a.ts:2:19  NO-DEEP  Use the package entry.  ('@demo/b/src/internal' → @demo/b/src/internal)",
@@ -194,6 +197,17 @@ describe('baselines from the CLI', () => {
     expect(stdout).toContain(
       '  LAYER-CONTROLLER-REPO-001  src/gone.controller.ts → src/user.repository.ts  (accepted 1)',
     );
+    expect(stdout).toContain('0 errors, 0 warnings, 1 known from the baseline.');
+  });
+
+  it('without a baseline key, check reads the file `tdepend baseline` wrote next to the config', async () => {
+    const config = writeConfig({ rules: [CONTROLLER_RULE] });
+    expect(await runCli(['check', '--root', NEST, '--config', config], io())).toBe(1);
+
+    expect(await runCli(['baseline', '--root', NEST, '--config', config], io())).toBe(0);
+    expect(stdout).toContain(join(dir, 'tdepend-baseline.json'));
+    stdout = '';
+    expect(await runCli(['check', '--root', NEST, '--config', config], io())).toBe(0);
     expect(stdout).toContain('0 errors, 0 warnings, 1 known from the baseline.');
   });
 

@@ -3,27 +3,19 @@ import { serializeReport } from '../api/serialization';
 import type { BaselineEntry } from '../baseline/baseline';
 import type { Violation, ViolationTarget } from '../rules/types';
 
-export interface FormatOptions {
-  /** Put before every path, so output from a subfolder lines up with the repository. */
-  pathPrefix: string;
-}
-
 // One line per actionable finding, errors first; a cycle lists every hop under
 // it. Known findings are only counted.
-export function formatText(report: CheckReport, { pathPrefix }: FormatOptions): string {
-  const path = (file: string): string => `${pathPrefix}${file}`;
+export function formatText(report: CheckReport): string {
   const errors = report.actionable.filter((violation) => violation.severity === 'error');
   const warns = report.actionable.filter((violation) => violation.severity === 'warn');
   const sections: string[][] = [];
 
-  if (errors.length > 0)
-    sections.push([`Errors (${errors.length}):`, ...findingLines(errors, path)]);
-  if (warns.length > 0)
-    sections.push([`Warnings (${warns.length}):`, ...findingLines(warns, path)]);
+  if (errors.length > 0) sections.push([`Errors (${errors.length}):`, ...findingLines(errors)]);
+  if (warns.length > 0) sections.push([`Warnings (${warns.length}):`, ...findingLines(warns)]);
   if (report.noLongerReported.length > 0) {
     sections.push([
       `No longer reported (${report.noLongerReported.length}):`,
-      ...report.noLongerReported.map((entry) => `  ${entryLine(entry, path)}`),
+      ...report.noLongerReported.map((entry) => `  ${entryLine(entry)}`),
     ]);
   }
   if (report.warnings.length > 0) {
@@ -39,6 +31,7 @@ export function formatJson(report: CheckReport): string {
   const data = {
     analyzerVersion: report.analyzerVersion,
     baseline: report.baseline,
+    exitCode: report.exitCode,
     summary: {
       errors,
       warnings: report.actionable.length - errors,
@@ -54,13 +47,13 @@ export function formatJson(report: CheckReport): string {
   return `${JSON.stringify(data, null, 2)}\n`;
 }
 
-function findingLines(violations: Violation[], path: (file: string) => string): string[] {
+function findingLines(violations: Violation[]): string[] {
   return violations.flatMap((violation) => {
-    const line = `  ${findingLine(violation, path)}`;
+    const line = `  ${findingLine(violation)}`;
     if (violation.kind !== 'cycle' || violation.witness === undefined) return [line];
     const hops = violation.witness.hops.map(
       (hop) =>
-        `      ${path(hop.fromFile)}:${hop.site.line}:${hop.site.column}  '${hop.site.specifier}' → ${targetText(hop.to, path)}`,
+        `      ${hop.fromFile}:${hop.site.line}:${hop.site.column}  '${hop.site.specifier}' → ${targetText(hop.to)}`,
     );
     return [line, ...hops];
   });
@@ -68,27 +61,27 @@ function findingLines(violations: Violation[], path: (file: string) => string): 
 
 // path:line:col  RULE  message  ('specifier' → target); a coverage finding has
 // no import, so it is the file alone.
-export function findingLine(violation: Violation, path: (file: string) => string): string {
+export function findingLine(violation: Violation): string {
   if (violation.site === undefined) {
-    return `${path(violation.from)}  ${violation.ruleId}  ${violation.message}`;
+    return `${violation.from}  ${violation.ruleId}  ${violation.message}`;
   }
   const { line, column, specifier } = violation.site;
-  const target = violation.to === undefined ? '' : ` → ${targetText(violation.to, path)}`;
-  return `${path(violation.from)}:${line}:${column}  ${violation.ruleId}  ${violation.message}  ('${specifier}'${target})`;
+  const target = violation.to === undefined ? '' : ` → ${targetText(violation.to)}`;
+  return `${violation.from}:${line}:${column}  ${violation.ruleId}  ${violation.message}  ('${specifier}'${target})`;
 }
 
-function entryLine(entry: BaselineEntry, path: (file: string) => string): string {
+function entryLine(entry: BaselineEntry): string {
   const where =
     entry.kind === 'cycle'
       ? `${entry.level} cycle [${(entry.members ?? []).join(', ')}]`
       : entry.target === undefined
-        ? path(entry.from)
-        : `${path(entry.from)} → ${targetText(entry.target, path)}`;
+        ? entry.from
+        : `${entry.from} → ${targetText(entry.target)}`;
   return `${entry.ruleId}  ${where}  (accepted ${entry.count})`;
 }
 
-function targetText(target: ViolationTarget, path: (file: string) => string): string {
-  return 'file' in target ? path(target.file) : target.module;
+function targetText(target: ViolationTarget): string {
+  return 'file' in target ? target.file : target.module;
 }
 
 function summary(report: CheckReport, errors: number, warns: number): string {

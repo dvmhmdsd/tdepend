@@ -21,7 +21,8 @@ export function evaluatePrivate(
   const scopeFiles = [...componentOf.keys()].filter((file) => context.inScope(instance, file));
   // Files whose component can own private files at all.
   const checked = scopeFiles.filter((file) => !isFileComponent(componentOf.get(file)!));
-  const perFile = checked.length < scopeFiles.length;
+  // Only when every file in scope is its own component does the rule do nothing.
+  const perFile = scopeFiles.length > 0 && checked.length === 0;
 
   const violations = context.sitesIn(instance).flatMap((record) => {
     const target = targetFile(record);
