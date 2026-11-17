@@ -1,5 +1,6 @@
 import { discoveryWarnings } from '../api/serialization';
 import type { Group } from '../components/types';
+import type { ResolutionReport } from '../graph/buildFileGraph';
 import type { Metrics } from '../metrics/computeMetrics';
 import type { AnalysisResult, GroupCycle } from '../types/api';
 
@@ -23,7 +24,7 @@ export function formatAnalyzeText(result: AnalysisResult): string {
     cycleLines('Component cycles', result.cycles.component),
     cycleLines('Package cycles', result.cycles.package),
     classLines(result),
-    unresolvedLines(result),
+    unresolvedLines(result.report),
     ignoredLines(result),
     unsupportedLines(result),
     [
@@ -81,8 +82,8 @@ function warningLines(result: AnalysisResult): string[] {
   return ['Warnings:', ...warnings.map((warning) => `  ${warning}`)];
 }
 
-function unresolvedLines(result: AnalysisResult): string[] {
-  const { unresolved } = result.report;
+export function unresolvedLines(report: ResolutionReport): string[] {
+  const { unresolved } = report;
   const lines = [`Unresolved imports (${unresolved.length}):`];
 
   for (const record of unresolved.slice(0, MAX_UNRESOLVED)) {

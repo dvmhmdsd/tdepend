@@ -86,6 +86,7 @@ export async function analyze(options: AnalyzeOptions = {}): Promise<AnalysisRes
     sites: built.sites,
     report: built.report,
     config,
+    configFile,
     configDir,
     effective,
     assignment,

@@ -93,6 +93,28 @@ describe('check', () => {
     expect(await runCli(['check', '--root', root, '--strict-resolution'], io())).toBe(2);
   });
 
+  it('text output lists unresolved imports and says when they are why it exits 2', async () => {
+    const root = join(FIXTURES, 'vite-tanstack-router');
+    const lenient = formatText(await check({ root }));
+    expect(lenient).toContain('Unresolved imports (2):\n  src/main.tsx:6  ./missing');
+    expect(lenient).not.toContain('Exit 2');
+
+    expect(formatText(await check({ root, strictResolution: true }))).toContain(
+      '0 errors, 0 warnings. Exit 2: 2 unresolved imports under --strict-resolution.',
+    );
+  });
+
+  it('notes when no config was found, so only the presets ran', async () => {
+    const without = await check({ root: NEST });
+    expect(without.warnings).toContain(
+      `No tdepend.config.json in ${NEST}; only the presets' rules ran.`,
+    );
+    const withConfig = await check({ root: NEST, config: writeConfig({}) });
+    expect(
+      withConfig.warnings.some((warning) => warning.startsWith('No tdepend.config.json')),
+    ).toBe(false);
+  });
+
   it('coverage text line has no line:col', async () => {
     const config = writeConfig({
       components: { type: 'directory', patterns: ['src/*'], coverage: { requireAll: true } },

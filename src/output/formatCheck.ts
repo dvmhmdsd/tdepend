@@ -2,6 +2,7 @@ import type { CheckReport } from '../api/check';
 import { serializeReport } from '../api/serialization';
 import type { BaselineEntry } from '../baseline/baseline';
 import type { Violation, ViolationTarget } from '../rules/types';
+import { unresolvedLines } from './analyzeText';
 
 // One line per actionable finding, errors first; a cycle lists every hop under
 // it. Known findings are only counted.
@@ -18,6 +19,8 @@ export function formatText(report: CheckReport): string {
       ...report.noLongerReported.map((entry) => `  ${entryLine(entry)}`),
     ]);
   }
+  // Rules can't judge an import that resolves nowhere, so it is listed here.
+  if (report.report.unresolved.length > 0) sections.push(unresolvedLines(report.report));
   if (report.warnings.length > 0) {
     sections.push(['Notes:', ...report.warnings.map((warning) => `  ${warning}`)]);
   }
@@ -87,7 +90,10 @@ function targetText(target: ViolationTarget): string {
 function summary(report: CheckReport, errors: number, warns: number): string {
   const parts = [plural(errors, 'error'), plural(warns, 'warning')];
   if (report.baseline !== null) parts.push(`${report.known.length} known from the baseline`);
-  return `${parts.join(', ')}.`;
+  const line = `${parts.join(', ')}.`;
+  if (report.exitCode !== 2) return line;
+  const unresolved = plural(report.report.unresolved.length, 'unresolved import');
+  return `${line} Exit 2: ${unresolved} under --strict-resolution.`;
 }
 
 function plural(count: number, noun: string): string {
