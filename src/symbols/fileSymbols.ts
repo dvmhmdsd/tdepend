@@ -45,9 +45,10 @@ export interface FileSymbols {
   exports: Map<string, ExportSource>;
   stars: ImportSite[];
   heritage: HeritageEntry[];
-  // Namespaces are not declarations here, but one that shares a name with an
-  // interface gives that name a runtime value.
-  namespaces: Set<string>;
+  // Names with a runtime binding the declarations don't record: namespaces,
+  // `import x =`, and `var`s inside blocks, which belong to the whole module.
+  // One that shares a name with an interface makes that name a value.
+  valueNames: Set<string>;
 }
 
 // When one name has several declarations (merging, or a type and a value with
@@ -78,11 +79,12 @@ export function collectFileSymbols(parsed: ParsedFile): FileSymbols {
     exports: new Map(),
     stars: [],
     heritage: [],
-    namespaces: new Set(),
+    valueNames: new Set(),
   };
   for (const site of parsed.sites) addSiteBindings(symbols, site);
   const visitor = new StatementVisitor(parsed.sourceFile, symbols);
   for (const statement of parsed.sourceFile.statements) visitor.visit(statement);
+  collectBlockVars(parsed.sourceFile, symbols.valueNames);
   return symbols;
 }
 
@@ -131,7 +133,9 @@ class StatementVisitor {
       this.declare(statement, statement.name?.text ?? 'default', 'function', { isAsyncFunction });
     } else if (ts.isVariableStatement(statement)) this.variableStatement(statement);
     else if (ts.isModuleDeclaration(statement) && ts.isIdentifier(statement.name)) {
-      this.symbols.namespaces.add(statement.name.text);
+      this.symbols.valueNames.add(statement.name.text);
+    } else if (ts.isImportEqualsDeclaration(statement) && !statement.isTypeOnly) {
+      this.symbols.valueNames.add(statement.name.text);
     } else if (ts.isExpressionStatement(statement)) this.commonJsExports(statement);
   }
 
@@ -249,6 +253,19 @@ class StatementVisitor {
     // A merged name is no longer a plain alias of one other name.
     delete existing.aliasOf;
   }
+}
+
+// `var` is scoped to the module, not the block, so one inside `if`, `for`,
+// `try` or `switch` binds a module-level name. Functions, classes and
+// namespaces start their own scope.
+function collectBlockVars(node: ts.Node, out: Set<string>): void {
+  node.forEachChild((child) => {
+    if (ts.isFunctionLike(child) || ts.isClassLike(child) || ts.isModuleDeclaration(child)) return;
+    if (ts.isVariableDeclarationList(child) && (child.flags & ts.NodeFlags.BlockScoped) === 0) {
+      for (const declaration of child.declarations) collectBindingNames(declaration.name, out);
+    }
+    collectBlockVars(child, out);
+  });
 }
 
 function isTypeKind(kind: DeclKind): boolean {

@@ -140,6 +140,33 @@ describe('eraseTypeReexports', () => {
     expect(loads(after, 'src/value-consumer.ts')).toEqual([true]);
   });
 
+  it('a name that also has a runtime meaning keeps loading, wherever it sits in the chain', () => {
+    const shapes: Record<string, string> = {
+      'merged-import.ts': "import { T } from './val';\ninterface T { t: string }\nexport { T };",
+      'merged-default.ts': "import T from './val';\ntype T = string;\nexport { T };",
+      'merged-namespace.ts':
+        "import * as T from './val';\ninterface T { t: string }\nexport { T };",
+      'type-import-and-const.ts': "import type { T } from './types';\nconst T = 1;\nexport { T };",
+      'for-var.ts': 'interface T { t: string }\nfor (var T = 0; T < 1; T++) {}\nexport { T };',
+      'try-var.ts': 'interface T { t: string }\ntry { var T = 1; } catch {}\nexport { T };',
+    };
+    const files: Record<string, string> = {
+      'src/val.ts': 'export const T = 1;\nexport default 3;',
+      'src/types.ts': 'export interface T { t: string }',
+    };
+    for (const [name, text] of Object.entries(shapes)) {
+      files[`src/${name}`] = text;
+      files[`src/via-${name}`] = `export { T } from './${name.replace('.ts', '')}';`;
+    }
+    files['src/barrel.ts'] = "import { T } from './merged-import';\nexport { T };";
+    files['src/via-barrel.ts'] = "export { T } from './barrel';";
+
+    const after = erase('', TSC, tempProject(files)).after;
+    for (const name of [...Object.keys(shapes), 'barrel.ts']) {
+      expect([name, loads(after, `src/via-${name}`)]).toEqual([name, [true]]);
+    }
+  });
+
   it('a re-export in a JavaScript file, or under verbatimModuleSyntax, keeps loading', () => {
     const js = tempProject({
       'src/dep.ts': DEP,
