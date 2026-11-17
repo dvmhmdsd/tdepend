@@ -1,7 +1,5 @@
 import * as ts from 'typescript';
 
-// Small syntax questions shared by the parser and the symbol index.
-
 export function hasModifier(node: ts.Node, kind: ts.SyntaxKind): boolean {
   return (
     ts.canHaveModifiers(node) &&

@@ -1,5 +1,3 @@
-// Ordering and grouping helpers shared by the graphs and the symbol index.
-
 // Compares two key lists position by position, so records sort by their first
 // key, then their second, and so on.
 export function compareKeys(left: readonly string[], right: readonly string[]): number {

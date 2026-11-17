@@ -156,9 +156,9 @@ describe('classifyLoads rules', () => {
   it('compilers: ["tsc"] erases an empty import but keeps an unmarked re-export', () => {
     expect(classify('empty-import').loadsTarget).toBe(true);
     expect(classify('empty-import', { compilers: ['tsc'] }).loadsTarget).toBe(false);
-    // The parser cannot tell `export { T } from` of a type from one of a value,
-    // and tsc keeps the value form, so the site stays loading until the symbol
-    // index exists (0.4.0).
+    // The classifier can't tell `export { T } from` of a type from one of a
+    // value, and tsc keeps the value form, so it keeps the site loading; the
+    // graph step decides later, with the symbol index.
     expect(classify('unmarked-reexport').loadsTarget).toBe(true);
     expect(classify('unmarked-reexport', { compilers: ['tsc'] }).loadsTarget).toBe(true);
   });

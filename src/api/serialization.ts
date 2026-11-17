@@ -46,7 +46,6 @@ export function toSerializable(result: AnalysisResult): SerializableResult {
   };
 }
 
-// Group id → its files, for components and packages alike.
 function groupFiles(result: AnalysisResult): Map<string, string[]> {
   const files = new Map<string, string[]>();
   const add = (group: Group | null | undefined, file: string): void => {
