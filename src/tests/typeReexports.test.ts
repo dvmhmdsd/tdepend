@@ -123,6 +123,23 @@ describe('eraseTypeReexports', () => {
     ]);
   });
 
+  it('a name a barrel exports only as a type stays a type, even when it names a class', () => {
+    expect(
+      loads(erase('compiler-elision', TSC).after, 'case-53-reexport-through-type-barrel.ts'),
+    ).toEqual([false]);
+
+    const root = tempProject({
+      'src/dep.ts': DEP,
+      'src/barrel.ts': "import type { Klass } from './dep';\nexport { Klass };",
+      'src/consumer.ts': "export { Klass } from './barrel';",
+      'src/value-barrel.ts': "export { Klass } from './dep';",
+      'src/value-consumer.ts': "export { Klass } from './value-barrel';",
+    });
+    const after = erase('', TSC, root).after;
+    expect(loads(after, 'src/consumer.ts')).toEqual([false]);
+    expect(loads(after, 'src/value-consumer.ts')).toEqual([true]);
+  });
+
   it('a re-export in a JavaScript file, or under verbatimModuleSyntax, keeps loading', () => {
     const js = tempProject({
       'src/dep.ts': DEP,
@@ -189,7 +206,7 @@ describe('eraseTypeReexports', () => {
       .map((name) => JSON.parse(readFileSync(join(dir, name), 'utf-8')))
       .filter((entry) => entry.id === 'case-12' || Number(entry.id.slice(5)) >= 44);
 
-    expect(cases).toHaveLength(10);
+    expect(cases).toHaveLength(11);
     for (const entry of cases) {
       expect([entry.id, loads(after, entry.file)]).toEqual([entry.id, [entry.tscProgram]]);
     }

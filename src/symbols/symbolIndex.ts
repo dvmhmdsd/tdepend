@@ -66,6 +66,7 @@ export function buildSymbolIndex(
     heritage: () => [...heritage],
     resolveExport: (file, name) => declarationOf(bindings.resolveExport(file, name)),
     isTypeOnlyExport: (file, name) => {
+      if (bindings.markedTypeOnly(file, name, new Set())) return true;
       const declaration = declarationOf(bindings.resolveExport(file, name));
       if (declaration === null) return false;
       const symbols = tables.get(declaration.file)?.symbols;
@@ -307,6 +308,39 @@ class BindingResolver {
     if ('unresolved' in target) return unresolved(target.unresolved);
     if (imported === '*') return { type: 'namespace', file: target.file };
     return this.resolveExport(target.file, imported);
+  }
+
+  // Whether the chain that exports `name` passes a `type` marker: `export type
+  // { C } from`, `export { type C } from`, or `export { C }` of a name imported
+  // with `import type`. Past such a hop the name is only a type, whatever C is.
+  // `export *` is not followed, so an unmarked star keeps the answer false.
+  markedTypeOnly(file: string, name: string, seen: Set<string>): boolean {
+    const key = `${file}\0${name}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    const table = this.tables.get(file);
+    const source = table?.symbols.exports.get(name);
+    if (table === undefined || source === undefined) return false;
+
+    const hop =
+      source.type === 'reexport'
+        ? { site: source.site, local: name, imported: source.imported }
+        : this.importOf(table, source.name);
+    if (hop === null) return false;
+    if (hop.site.bindings.some((binding) => binding.local === hop.local && binding.typeOnly)) {
+      return true;
+    }
+    const target = this.targetOf(hop.site);
+    if ('unresolved' in target || hop.imported === '*') return false;
+    return this.markedTypeOnly(target.file, hop.imported, seen);
+  }
+
+  private importOf(
+    table: FileTable,
+    local: string,
+  ): { site: ImportSite; local: string; imported: string } | null {
+    const binding = table.symbols.imports.get(local);
+    return binding === undefined ? null : { site: binding.site, local, imported: binding.imported };
   }
 
   // Only files in the index are followed. An excluded target (a spec file) or a

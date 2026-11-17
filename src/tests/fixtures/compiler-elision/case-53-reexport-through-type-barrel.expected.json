@@ -1,0 +1,12 @@
+{
+  "id": "case-53",
+  "slug": "reexport-through-type-barrel",
+  "file": "case-53-reexport-through-type-barrel.ts",
+  "options": {},
+  "tsc": true,
+  "esbuild": true,
+  "swc": true,
+  "conservative": false,
+  "loadsTarget": true,
+  "tscProgram": false
+}
