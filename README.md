@@ -23,7 +23,7 @@ tdepend check       # evaluate the rules; exit 1 on any error
 tdepend baseline    # accept today's violations, so only new ones fail
 ```
 
-Every command takes `--root <dir>` and `--config <path>`. tdepend reads the checkout as it is, so it works before a build and usually before `npm install`.
+Every command takes `--root <dir>` and `--config <path>`. tdepend looks for `tdepend.config.json` in the root only; without one, the presets' rules still run and `check` says so. It reads the checkout as it is, so it works before a build and usually before `npm install`.
 
 ## Commands
 
@@ -94,11 +94,13 @@ Errors (1):
 1 error, 0 warnings.
 ```
 
+Unresolved imports are listed after the findings, because a rule can't judge an import that resolves nowhere.
+
 | Exit code | When |
 |---|---|
 | 0 | No error the baseline doesn't cover. Warnings never fail a run |
 | 1 | At least one error the baseline doesn't cover |
-| 2 | A config, parse or baseline error, a missing root, or an unresolved import under `--strict-resolution` |
+| 2 | An invalid or unreadable config or baseline file, a source file that can't be read, a missing root, or an unresolved import under `--strict-resolution` (the output says which) |
 
 ### `tdepend baseline`
 
@@ -157,14 +159,14 @@ List it as `"presets": ["auto", "./acme-preset.js"]`. A preset may set `extends`
 | `components.type` | A file belongs to |
 |---|---|
 | `directory` | The folder matched by the first of `patterns` that matches one of its ancestors, such as `["src/features/*", "src/*"]` |
-| `nest-module` | The nearest folder with a `*.module.ts`. The outermost module (AppModule) keeps only its `*.module.ts` files; everything else it would claim, such as `src/main.ts` or `src/common`, belongs to no component |
+| `nest-module` | The nearest folder with a `*.module.ts`. AppModule (the outermost folder holding `app.module.ts`, with feature modules below it) keeps only its `*.module.ts` files; everything else it would claim, such as `src/main.ts` or `src/common`, belongs to no component |
 | `file` | Itself |
 
 Files that match nothing go to their project's `(root)` group. With `"coverage": { "requireAll": true, "allowUnmatched": ["src/main.ts"] }` inside `components`, each of those files is a `components/coverage` violation. In a workspace, every file also belongs to its nearest workspace package.
 
 ## Rules
 
-Every rule has an `id`, a `severity` (`error` by default, `warn` or `off`) and a `message`. Paths are relative to the repository root.
+Every rule has an `id`, a `severity` (`error` by default, `warn` or `off`) and a `message`. Paths are relative to the repository root. A path can't start with `!`; list exceptions in `exceptFrom` or `exceptTo`.
 
 **`forbidden`**: no import from `from` files to `to` targets.
 
