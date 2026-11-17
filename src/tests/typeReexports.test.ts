@@ -167,6 +167,24 @@ describe('eraseTypeReexports', () => {
     }
   });
 
+  it('two star paths to the same interface are one provider; to a class they keep loading', () => {
+    const diamond = (dep: string) =>
+      tempProject({
+        'src/dep.ts': dep,
+        'src/left.ts': "export { T } from './dep';",
+        'src/right.ts': "export { T } from './dep';",
+        'src/barrel.ts': "export * from './left';\nexport * from './right';",
+        'src/main.ts': "export { T } from './barrel';",
+      });
+
+    expect(loads(erase('', TSC, diamond('export interface T {}')).after, 'src/main.ts')).toEqual([
+      false,
+    ]);
+    expect(loads(erase('', TSC, diamond('export class T {}')).after, 'src/main.ts')).toEqual([
+      true,
+    ]);
+  });
+
   it('a re-export in a JavaScript file, or under verbatimModuleSyntax, keeps loading', () => {
     const js = tempProject({
       'src/dep.ts': DEP,
