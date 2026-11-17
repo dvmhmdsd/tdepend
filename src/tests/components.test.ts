@@ -172,6 +172,48 @@ describe('assignComponents: nest-module and file strategies', () => {
     expect(unassigned).toEqual(['src/common/clock.ts', 'src/main.setup.ts', 'src/main.ts']);
   });
 
+  it('nest-module: a feature or library module with sub-modules keeps all its files', () => {
+    const files = [
+      'libs/auth/src/auth.module.ts',
+      'libs/auth/src/auth.service.ts',
+      'libs/auth/src/jwt/jwt.module.ts',
+      'src/app/app.module.ts',
+      'src/main.ts',
+      'src/users/admin/admin.module.ts',
+      'src/users/dto/create-user.dto.ts',
+      'src/users/users.module.ts',
+      'src/users/users.service.ts',
+    ];
+    const { componentOf } = assign('nest-cjs', files, nest);
+
+    expect(componentOf.get('src/users/users.service.ts')?.id).toBe('dir:proj:(repo):src/users');
+    expect(componentOf.get('src/users/dto/create-user.dto.ts')?.id).toBe(
+      'dir:proj:(repo):src/users',
+    );
+    expect(componentOf.get('libs/auth/src/auth.service.ts')?.id).toBe(
+      'dir:proj:(repo):libs/auth/src',
+    );
+  });
+
+  it('nest-module: in a Nest monorepo each app keeps only its AppModule; libraries keep their files', () => {
+    const files = [
+      'apps/api/src/app.module.ts',
+      'apps/api/src/common/clock.ts',
+      'apps/api/src/main.ts',
+      'apps/api/src/users/users.module.ts',
+      'libs/auth/src/auth.module.ts',
+      'libs/auth/src/auth.service.ts',
+      'libs/auth/src/jwt/jwt.module.ts',
+    ];
+    const { componentOf, unassigned } = assign('nest-cjs', files, nest);
+
+    expect(componentOf.get('apps/api/src/app.module.ts')?.id).toBe('dir:proj:(repo):apps/api/src');
+    expect(unassigned).toEqual(['apps/api/src/common/clock.ts', 'apps/api/src/main.ts']);
+    expect(componentOf.get('libs/auth/src/auth.service.ts')?.id).toBe(
+      'dir:proj:(repo):libs/auth/src',
+    );
+  });
+
   it('nest-module: a module beside package.json owns the project directory', () => {
     const files = ['app.module.ts', 'src/a.ts'];
     const { componentOf, unassigned } = assign('nest-cjs', files, nest);

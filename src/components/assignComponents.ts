@@ -7,6 +7,7 @@ import type { Assignment, ComponentStrategy, Group } from './types';
 export const WORKSPACE_ROOT_PACKAGE = 'pkg:(workspace-root)';
 
 const NEST_MODULE = /\.module\.ts$/;
+const APP_MODULE = 'app.module.ts';
 
 type Placement = Pick<Group, 'id' | 'name' | 'directory'>;
 
@@ -18,13 +19,11 @@ export function assignComponents(
   files: string[],
   strategyFor: (project: Project) => ComponentStrategy,
 ): Assignment {
-  const moduleDirs = new Map<string, Set<string>>();
+  const moduleFiles = new Map<string, string[]>();
   for (const file of files) {
     if (!NEST_MODULE.test(file)) continue;
     const projectId = ctx.projectFor(file).id;
-    const dirs = moduleDirs.get(projectId) ?? new Set<string>();
-    dirs.add(posixDirname(file));
-    moduleDirs.set(projectId, dirs);
+    moduleFiles.set(projectId, [...(moduleFiles.get(projectId) ?? []), file]);
   }
   const locators = new Map<string, Locator>();
   const components = new Map<string, Group>();
@@ -44,8 +43,8 @@ export function assignComponents(
     const pkg = ctx.packageFor(file);
     let locate = locators.get(project.id);
     if (locate === undefined) {
-      const dirs = moduleDirs.get(project.id) ?? new Set<string>();
-      locate = createLocator(project, strategyFor(project), dirs, warnings);
+      const modules = moduleFiles.get(project.id) ?? [];
+      locate = createLocator(project, strategyFor(project), modules, warnings);
       locators.set(project.id, locate);
     }
 
@@ -77,14 +76,14 @@ export function assignComponents(
 function createLocator(
   project: Project,
   strategy: ComponentStrategy,
-  moduleDirs: Set<string>,
+  moduleFiles: string[],
   warnings: Set<string>,
 ): Locator {
   switch (strategy.type) {
     case 'file':
       return (file) => ({ id: `file:${file}`, name: file, directory: posixDirname(file) });
     case 'nest-module':
-      return nestModuleLocator(project, moduleDirs);
+      return nestModuleLocator(project, moduleFiles);
     case 'directory':
       return directoryLocator(project, strategy.patterns, warnings);
   }
@@ -115,18 +114,25 @@ function directoryLocator(project: Project, patterns: string[], warnings: Set<st
   };
 }
 
-// `moduleDirs` holds this project's module directories. The outermost one with
-// modules below it is the application's root module, AppModule in src/. Every
-// other file it would claim (main.ts, bootstrap helpers, src/common) is shared
-// or entry-point code: counted as part of AppModule, which imports every
-// feature module, any of them a feature imports would put AppModule in a cycle
-// with that feature. So the root module keeps only its *.module.ts files, and
-// the rest go to the root bucket, where each file stands alone in cycles.
-function nestModuleLocator(project: Project, moduleDirs: Set<string>): Locator {
+// `moduleFiles` holds this project's *.module.ts files. The application's root
+// module is AppModule: an outermost module folder holding app.module.ts, with
+// feature modules below it. Every other file it would claim (main.ts, bootstrap
+// helpers, src/common) is shared or entry-point code: counted as part of
+// AppModule, which imports every feature module, any of them a feature imports
+// would put AppModule in a cycle with that feature. So the root module keeps
+// only its *.module.ts files, and the rest go to the root bucket, where each
+// file stands alone in cycles. The file name is Nest's convention; where it
+// doesn't hold, nothing is taken from any module, which is the safe direction:
+// a feature or library module with sub-modules keeps all its files.
+function nestModuleLocator(project: Project, moduleFiles: string[]): Locator {
+  const moduleDirs = new Set(moduleFiles.map(posixDirname));
+  const appModuleDirs = moduleFiles
+    .filter((file) => file === APP_MODULE || file.endsWith(`/${APP_MODULE}`))
+    .map(posixDirname);
   const ancestorsOf = (dir: string): string[] =>
     dir === project.dir ? [] : [...ancestorsBelow(dir, project.dir), project.dir];
   const roots = new Set(
-    [...moduleDirs].filter(
+    appModuleDirs.filter(
       (dir) =>
         !ancestorsOf(dir).some((ancestor) => moduleDirs.has(ancestor)) &&
         [...moduleDirs].some((other) => ancestorsOf(other).includes(dir)),
