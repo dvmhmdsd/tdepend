@@ -639,6 +639,22 @@ describe('instances, scopes and warnings', () => {
     ).toBe(false);
   });
 
+  it('rejects "!" patterns in every rule glob list, pointing to the exception keys', () => {
+    const forbidden = { type: 'forbidden', id: 'F', message: 'M', from: ['src/**'], to: ['db/**'] };
+    const rejects = (value: Record<string, unknown>) =>
+      ruleConfigSchema.safeParse({ ...forbidden, ...value }).success === false;
+
+    expect(rejects({ from: ['src/**', '!src/legacy/**'] })).toBe(true);
+    expect(rejects({ to: { files: ['!db/**'] } })).toBe(true);
+    expect(rejects({ exceptFrom: ['!src/a.ts'] })).toBe(true);
+    expect(rejects({ exceptFrom: ['src/legacy/**'] })).toBe(false);
+
+    const result = ruleConfigSchema.safeParse({ ...forbidden, from: ['!src/legacy/**'] });
+    expect(JSON.stringify(result.error?.issues)).toContain(
+      'a rule can\'t use \\"!\\" patterns; list the exceptions in exceptFrom or exceptTo',
+    );
+  });
+
   it('returns the instances it was given', () => {
     const instances = [userRule(nothing)];
     expect(evaluateRules(backend, instances).instances).toEqual(instances);
