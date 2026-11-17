@@ -19,10 +19,8 @@ export function evaluatePrivate(
   const exceptFrom = globMatcher(rule.exceptFrom);
   const isPrivate = privacyTest(rule);
   const scopeFiles = [...componentOf.keys()].filter((file) => context.inScope(instance, file));
-  // Files whose component can own private files at all.
-  const checked = scopeFiles.filter((file) => !isFileComponent(componentOf.get(file)!));
-  // Only when every file in scope is its own component does the rule do nothing.
-  const perFile = scopeFiles.length > 0 && checked.length === 0;
+  const canBePrivate = scopeFiles.filter((file) => !isFileComponent(componentOf.get(file)!));
+  const doesNothing = scopeFiles.length > 0 && canBePrivate.length === 0;
 
   const violations = context.sitesIn(instance).flatMap((record) => {
     const target = targetFile(record);
@@ -34,11 +32,11 @@ export function evaluatePrivate(
   });
 
   const warnings: string[] = [];
-  if (perFile) {
+  if (doesNothing) {
     warnings.push(`rule ${rule.id}: \`private\` does nothing with the \`file\` component strategy`);
   }
-  if (instance.origin === 'user' && rule.paths !== undefined && checked.length > 0) {
-    const anyPrivate = checked.some((file) => isPrivate(file, componentOf.get(file)!));
+  if (instance.origin === 'user' && rule.paths !== undefined && canBePrivate.length > 0) {
+    const anyPrivate = canBePrivate.some((file) => isPrivate(file, componentOf.get(file)!));
     if (!anyPrivate) warnings.push(noMatchWarning(instance, 'paths', rule.paths));
   }
   return { violations, warnings };
@@ -47,14 +45,13 @@ export function evaluatePrivate(
 function privacyTest(rule: PrivateRule): (file: string, owner: Group) => boolean {
   if (rule.paths !== undefined) {
     const matches = globMatcher(rule.paths);
-    return (file, owner) => matches(insideOf(owner, file));
+    return (file, owner) => matches(pathWithinComponent(owner, file));
   }
   const isPublic = globMatcher(rule.public);
-  return (file, owner) => !isBucket(owner) && !isPublic(insideOf(owner, file));
+  return (file, owner) => !isBucket(owner) && !isPublic(pathWithinComponent(owner, file));
 }
 
-// The file's path relative to its component's directory.
-function insideOf(owner: Group, file: string): string {
+function pathWithinComponent(owner: Group, file: string): string {
   if (owner.directory === '') return file;
   const prefix = `${owner.directory}/`;
   return file.startsWith(prefix) ? file.slice(prefix.length) : file;

@@ -79,7 +79,6 @@ interface SiteCollector {
   selfImports: Set<string>;
 }
 
-// The per-file context a site is judged against.
 interface SiteEnvironment {
   resolver: Resolver;
   typeOnly: 'usage' | 'syntax';

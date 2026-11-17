@@ -41,9 +41,6 @@ interface CheckCliOptions extends CommonOptions {
   strictResolution?: boolean;
 }
 
-/**
- * Runs the CLI and resolves to its exit code.
- */
 export async function runCli(argv: string[], io: CliIo): Promise<ExitCode> {
   let exitCode: ExitCode = 0;
   const program = buildProgram(io, (code) => {
