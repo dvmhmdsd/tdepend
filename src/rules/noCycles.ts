@@ -17,7 +17,7 @@ export function evaluateNoCycles(
   rule: NoCyclesRule,
   context: RuleContext,
 ): RuleOutcome {
-  const graph = scopedGraph(rule.level, instance, context);
+  const graph = scopedGraphOf(rule.level, instance, context);
   if (graph === null) return { violations: [], warnings: [] };
 
   const cycles = findCycles(
@@ -42,6 +42,25 @@ export function evaluateNoCycles(
 interface ScopedGraph {
   cycleGraph: CycleGraph;
   nameOf(id: string): string;
+}
+
+// Rules at the same level and scope share one graph per evaluation; the cycle
+// cache then answers each filter setting once.
+const graphsByContext = new WeakMap<RuleContext, Map<string, ScopedGraph | null>>();
+
+function scopedGraphOf(
+  level: CycleLevel,
+  instance: RuleInstance,
+  context: RuleContext,
+): ScopedGraph | null {
+  let graphs = graphsByContext.get(context);
+  if (graphs === undefined) {
+    graphs = new Map();
+    graphsByContext.set(context, graphs);
+  }
+  const key = `${level}\u0000${scopeIdOf(instance)}`;
+  if (!graphs.has(key)) graphs.set(key, scopedGraph(level, instance, context));
+  return graphs.get(key) ?? null;
 }
 
 // The graph at the rule's level, cut down to the instance's scope. A group is

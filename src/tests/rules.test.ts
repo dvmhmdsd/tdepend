@@ -8,6 +8,7 @@ import { assignComponents } from '../components/assignComponents';
 import { buildGroupGraph } from '../components/groupGraph';
 import type { ComponentStrategy, CoverageConfig } from '../components/types';
 import { CycleCache } from '../cycles/findCycles';
+import type { Project } from '../project/types';
 import { ConfigError } from '../errors';
 import { evaluateRules, userRuleInstances } from '../rules/evaluateRules';
 import { fingerprint, identityOf } from '../rules/identity';
@@ -25,9 +26,14 @@ import { FIXTURES, buildFixtureParts } from './helpers/fixtureGraph';
 
 const BY_FOLDER: ComponentStrategy = { type: 'directory', patterns: ['src/*'] };
 
-function inputFor(name: string, strategy = BY_FOLDER, coverage?: CoverageConfig): RuleInput {
+function inputFor(
+  name: string,
+  strategy: ComponentStrategy | ((project: Project) => ComponentStrategy) = BY_FOLDER,
+  coverage?: CoverageConfig,
+): RuleInput {
   const parts = buildFixtureParts(name);
-  const assignment = assignComponents(parts.ctx, parts.graph.files(), () => strategy);
+  const strategyFor = typeof strategy === 'function' ? strategy : () => strategy;
+  const assignment = assignComponents(parts.ctx, parts.graph.files(), strategyFor);
   const component = buildGroupGraph(parts.graph, assignment, 'component', parts.sites);
   const groups =
     assignment.packages.length === 0
@@ -320,6 +326,19 @@ describe('private', () => {
     expect(evaluation.warnings).toEqual([
       'rule MODULE-REPO-PRIVATE-001: `private` does nothing with the `file` component strategy',
     ]);
+  });
+
+  it('does not warn when only some projects use the file strategy', () => {
+    const mixed = inputFor('preset-projects', (project) =>
+      project.id === 'proj:apps/web' ? { type: 'file' } : BY_FOLDER,
+    );
+    const evaluation = run(mixed, {
+      type: 'private',
+      id: 'USERS-PRIVATE',
+      paths: ['**/*.repository.ts'],
+      message: 'Private.',
+    });
+    expect(evaluation.warnings).toEqual([]);
   });
 });
 
