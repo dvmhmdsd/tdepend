@@ -67,6 +67,9 @@ export function checkAnalysis(
       ? { actionable: evaluation.violations, known: [], noLongerReported: [] }
       : compareWithBaseline(evaluation.violations, readBaseline(baseline));
   const warnings = new Set([
+    ...(result.configFile === null
+      ? [`No tdepend.config.json in ${result.configDir}; only the presets' rules ran.`]
+      : []),
     ...discoveryWarnings(result),
     ...result.assignment.warnings,
     ...result.effective.warnings,

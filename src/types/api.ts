@@ -24,6 +24,8 @@ export interface AnalysisResult {
   sites: SiteRecord[];
   report: ResolutionReport;
   config: UserConfig;
+  /** The config file read, or null when none was found. */
+  configFile: string | null;
   /** The folder relative paths in the config are read from. */
   configDir: string;
   effective: EffectiveConfig;
