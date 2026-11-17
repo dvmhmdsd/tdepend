@@ -343,18 +343,29 @@ class BindingResolver {
     return this.typeOnlyExport(target.file, imported, seen);
   }
 
-  // `export *` provides a name only when exactly one source declares it, as in
-  // lookupStar; `export type *` provides only types.
+  // `export *` provides a name only when exactly one declaration is reached, as
+  // in lookupStar; several stars may reach it, and it is a type only if every
+  // path is, since one plain path to a class carries the value. `export type *`
+  // provides only types.
   private typeOnlyStar(table: FileTable, name: string, seen: Set<string>): boolean {
-    const providers = table.symbols.stars.filter((site) => {
+    const reaching = new Map<string, ImportSite[]>();
+    for (const site of table.symbols.stars) {
       const target = this.targetOf(site);
-      return (
-        !('unresolved' in target) && this.resolveExport(target.file, name).type !== 'unresolved'
-      );
-    });
-    if (providers.length !== 1) return false;
-    if (providers[0].kind === 'type') return true;
-    return this.typeOnlyThrough(providers[0], name, seen);
+      if ('unresolved' in target) continue;
+      const entity = this.resolveExport(target.file, name);
+      if (entity.type === 'unresolved') {
+        if (entity.reason === 'ambiguous') return false;
+        continue;
+      }
+      const identity =
+        entity.type === 'declaration' ? entity.declaration.id : `namespace:${entity.file}`;
+      reaching.set(identity, [...(reaching.get(identity) ?? []), site]);
+    }
+    if (reaching.size !== 1) return false;
+    const [sites] = reaching.values();
+    return sites.every(
+      (site) => site.kind === 'type' || this.typeOnlyThrough(site, name, new Set(seen)),
+    );
   }
 
   // Only files in the index are followed. An excluded target (a spec file) or a
