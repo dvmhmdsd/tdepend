@@ -12,7 +12,13 @@ import type { SymbolIndex } from '../symbols/types';
 // the types below are inferred from it, so the two can never disagree.
 
 const severitySchema = z.enum(['error', 'warn', 'off']);
-const globsSchema = z.array(z.string());
+// A glob list matches a file when any glob does, so a "!" entry would match
+// every file the others don't, widening the rule instead of narrowing it.
+const globsSchema = z.array(
+  z.string().refine((glob) => !glob.startsWith('!'), {
+    message: 'a rule can\'t use "!" patterns; list the exceptions in exceptFrom or exceptTo',
+  }),
+);
 const edgeKindSchema = z.enum(['static', 'type', 're-export', 'dynamic', 'require', 'side-effect']);
 
 const targetSelectorSchema = z
