@@ -158,7 +158,7 @@ List it as `"presets": ["auto", "./acme-preset.js"]`. A preset may set `extends`
 | `components.type` | A file belongs to |
 |---|---|
 | `directory` | The folder matched by the first of `patterns` that matches one of its ancestors, such as `["src/features/*", "src/*"]` |
-| `nest-module` | The nearest folder with a `*.module.ts`. The outermost module keeps only its own folder, so shared folders such as `src/common` belong to no component |
+| `nest-module` | The nearest folder with a `*.module.ts`. The outermost module (AppModule) keeps only its `*.module.ts` files; everything else it would claim, such as `src/main.ts` or `src/common`, belongs to no component |
 | `file` | Itself |
 
 Files that match nothing go to their project's `(root)` group. With `"coverage": { "requireAll": true, "allowUnmatched": ["src/main.ts"] }` inside `components`, each of those files is a `components/coverage` violation. In a workspace, every file also belongs to its nearest workspace package.
