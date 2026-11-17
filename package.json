@@ -55,7 +55,7 @@
   "bugs": {
     "url": "https://github.com/dvmhmdsd/tdepend/issues"
   },
-  "homepage": "https://github.com/dvmhmdsd/tdepend#readme",
+  "homepage": "https://tdepend.pages.dev",
   "author": "Mohamed Saad <mohamed.tarif999@gmail.com>",
   "license": "MIT",
   "packageManager": "pnpm@10.34.8",
