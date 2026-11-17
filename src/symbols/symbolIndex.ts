@@ -65,14 +65,7 @@ export function buildSymbolIndex(
     },
     heritage: () => [...heritage],
     resolveExport: (file, name) => declarationOf(bindings.resolveExport(file, name)),
-    isTypeOnlyExport: (file, name) => {
-      if (bindings.markedTypeOnly(file, name, new Set())) return true;
-      const declaration = declarationOf(bindings.resolveExport(file, name));
-      if (declaration === null) return false;
-      const symbols = tables.get(declaration.file)?.symbols;
-      const local = symbols?.declarations.get(declaration.name);
-      return local?.typeOnly === true && !symbols!.namespaces.has(declaration.name);
-    },
+    isTypeOnlyExport: (file, name) => bindings.typeOnlyExport(file, name, new Set()),
     unresolvedHeritageCount: heritage.filter((ref) => ref.resolved === null).length,
   };
 }
@@ -310,37 +303,58 @@ class BindingResolver {
     return this.resolveExport(target.file, imported);
   }
 
-  // Whether the chain that exports `name` passes a `type` marker: `export type
-  // { C } from`, `export { type C } from`, or `export { C }` of a name imported
-  // with `import type`. Past such a hop the name is only a type, whatever C is.
-  // `export *` is not followed, so an unmarked star keeps the answer false.
-  markedTypeOnly(file: string, name: string, seen: Set<string>): boolean {
+  // Whether `name`, as `file` exports it, is provably only a type: every hop of
+  // the export chain either marks it `type` (`export type { C } from`, `import
+  // type { C }`) or ends at declarations that are all interfaces or type
+  // aliases. Any hop where the name also has a runtime meaning (a value import
+  // merged with a local interface, a namespace, a block-level `var`) makes it a
+  // value. Unresolved, ambiguous and cyclic chains are values too.
+  typeOnlyExport(file: string, name: string, seen: Set<string>): boolean {
     const key = `${file}\0${name}`;
     if (seen.has(key)) return false;
     seen.add(key);
     const table = this.tables.get(file);
-    const source = table?.symbols.exports.get(name);
-    if (table === undefined || source === undefined) return false;
+    if (table === undefined) return false;
+    const source = table.symbols.exports.get(name);
+    if (source === undefined) return name !== 'default' && this.typeOnlyStar(table, name, seen);
 
-    const hop =
-      source.type === 'reexport'
-        ? { site: source.site, local: name, imported: source.imported }
-        : this.importOf(table, source.name);
-    if (hop === null) return false;
-    if (hop.site.bindings.some((binding) => binding.local === hop.local && binding.typeOnly)) {
-      return true;
+    if (source.type === 'reexport') {
+      if (isTypeOnlyBinding(source.site, name)) return true;
+      return this.typeOnlyThrough(source.site, source.imported, seen);
     }
-    const target = this.targetOf(hop.site);
-    if ('unresolved' in target || hop.imported === '*') return false;
-    return this.markedTypeOnly(target.file, hop.imported, seen);
+
+    const local = source.name;
+    if (table.symbols.valueNames.has(local)) return false;
+    const declared = table.symbols.declarations.get(local);
+    const imported = table.symbols.imports.get(local);
+    if (declared !== undefined) {
+      return (
+        declared.typeOnly && (imported === undefined || isTypeOnlyBinding(imported.site, local))
+      );
+    }
+    if (imported === undefined) return false;
+    if (isTypeOnlyBinding(imported.site, local)) return true;
+    return this.typeOnlyThrough(imported.site, imported.imported, seen);
   }
 
-  private importOf(
-    table: FileTable,
-    local: string,
-  ): { site: ImportSite; local: string; imported: string } | null {
-    const binding = table.symbols.imports.get(local);
-    return binding === undefined ? null : { site: binding.site, local, imported: binding.imported };
+  private typeOnlyThrough(site: ImportSite, imported: string, seen: Set<string>): boolean {
+    const target = this.targetOf(site);
+    if ('unresolved' in target || imported === '*') return false;
+    return this.typeOnlyExport(target.file, imported, seen);
+  }
+
+  // `export *` provides a name only when exactly one source declares it, as in
+  // lookupStar; `export type *` provides only types.
+  private typeOnlyStar(table: FileTable, name: string, seen: Set<string>): boolean {
+    const providers = table.symbols.stars.filter((site) => {
+      const target = this.targetOf(site);
+      return (
+        !('unresolved' in target) && this.resolveExport(target.file, name).type !== 'unresolved'
+      );
+    });
+    if (providers.length !== 1) return false;
+    if (providers[0].kind === 'type') return true;
+    return this.typeOnlyThrough(providers[0], name, seen);
   }
 
   // Only files in the index are followed. An excluded target (a spec file) or a
@@ -398,4 +412,8 @@ class BindingResolver {
     const table = this.tables.get(declaration.file);
     return table?.symbols.declarations.get(declaration.name)?.isAsyncFunction === true;
   }
+}
+
+function isTypeOnlyBinding(site: ImportSite, local: string): boolean {
+  return site.bindings.some((binding) => binding.local === local && binding.typeOnly);
 }
