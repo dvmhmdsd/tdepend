@@ -47,21 +47,27 @@ export function resolvePresets(
   return result;
 }
 
+const RESERVED_NAMES = new Set(['next', 'tanstack-router', 'tanstack-start', 'prisma', 'monorepo']);
+
 function loadPreset(entry: string, configDir: string): Preset {
   const builtIn = Object.prototype.hasOwnProperty.call(builtInPresets, entry)
     ? builtInPresets[entry]
     : undefined;
   if (builtIn !== undefined) return builtIn;
+  const unknown = (): ConfigError =>
+    new ConfigError(
+      `Unknown preset "${entry}". Built-in presets: ${Object.keys(builtInPresets).sort().join(', ')}. Any other entry must be a module that resolves from ${configDir}.`,
+    );
+  // These name framework packages a repo usually has installed; loading one as
+  // a preset would run that package's code.
+  if (RESERVED_NAMES.has(entry)) throw unknown();
 
   // A config file name, so the module is resolved as if the config imported it.
   const load = createRequire(join(configDir, 'tdepend.config.json'));
   try {
     load.resolve(entry);
   } catch {
-    const names = Object.keys(builtInPresets).sort().join(', ');
-    throw new ConfigError(
-      `Unknown preset "${entry}". Built-in presets: ${names}. Any other entry must be a module that resolves from ${configDir}.`,
-    );
+    throw unknown();
   }
 
   let loaded: unknown;

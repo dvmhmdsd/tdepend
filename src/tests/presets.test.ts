@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -138,6 +138,23 @@ describe('resolvePresets', () => {
     expect(() => resolvePresets(['auto', 'nope'], ctx, dir)).toThrow(
       `Unknown preset "nope". Built-in presets: express, fastify, nest, node, react. Any other entry must be a module that resolves from ${dir}.`,
     );
+  });
+
+  it('a planned preset name is unknown and never loads the package of that name', () => {
+    const dir = presetModules({});
+    mkdirSync(join(dir, 'node_modules', 'next'), { recursive: true });
+    writeFileSync(
+      join(dir, 'node_modules', 'next', 'package.json'),
+      '{"name":"next","main":"index.js"}',
+    );
+    writeFileSync(
+      join(dir, 'node_modules', 'next', 'index.js'),
+      "require('fs').writeFileSync(__dirname + '/ran', '1');\n",
+    );
+    const { ctx } = buildFixtureParts('nest-cjs');
+
+    expect(() => resolvePresets(['auto', 'next'], ctx, dir)).toThrow('Unknown preset "next"');
+    expect(existsSync(join(dir, 'node_modules', 'next', 'ran'))).toBe(false);
   });
 
   it('a module specifier loads a definePreset export, CommonJS or ESM, with what it extends', () => {
