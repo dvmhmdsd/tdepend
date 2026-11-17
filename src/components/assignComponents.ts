@@ -116,11 +116,12 @@ function directoryLocator(project: Project, patterns: string[], warnings: Set<st
 }
 
 // `moduleDirs` holds this project's module directories. The outermost one with
-// modules below it is the application's root module, AppModule in src/. Its
-// subfolders without a module of their own, such as src/common, hold shared
-// code: counted as part of AppModule, which imports every feature module, they
-// would put AppModule in a cycle with every feature that uses them. They go to
-// the root bucket instead, and the root module keeps only its own folder.
+// modules below it is the application's root module, AppModule in src/. Every
+// other file it would claim (main.ts, bootstrap helpers, src/common) is shared
+// or entry-point code: counted as part of AppModule, which imports every
+// feature module, any of them a feature imports would put AppModule in a cycle
+// with that feature. So the root module keeps only its *.module.ts files, and
+// the rest go to the root bucket, where each file stands alone in cycles.
 function nestModuleLocator(project: Project, moduleDirs: Set<string>): Locator {
   const ancestorsOf = (dir: string): string[] =>
     dir === project.dir ? [] : [...ancestorsBelow(dir, project.dir), project.dir];
@@ -137,7 +138,9 @@ function nestModuleLocator(project: Project, moduleDirs: Set<string>): Locator {
       moduleDirs.has(dir),
     );
     if (owner === undefined) return null;
-    if (roots.has(owner) && posixDirname(file) !== owner) return null;
+    if (roots.has(owner) && (posixDirname(file) !== owner || !NEST_MODULE.test(file))) {
+      return null;
+    }
     return directoryPlacement(project, owner);
   };
 }

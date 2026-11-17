@@ -146,17 +146,18 @@ describe('assignComponents: nest-module and file strategies', () => {
     ];
     const { componentOf, unassigned } = assign('nest-cjs', files, nest);
 
-    expect(componentOf.get('src/main.ts')?.id).toBe('dir:proj:(repo):src');
+    expect(componentOf.get('src/app.module.ts')?.id).toBe('dir:proj:(repo):src');
     expect(componentOf.get('src/users/dto/x.ts')?.id).toBe('dir:proj:(repo):src/users');
     expect(componentOf.get('src/users/admin/dto/a.ts')?.id).toBe('dir:proj:(repo):src/users/admin');
     expect(componentOf.get('scripts/seed.ts')?.id).toBe('root:proj:(repo)');
-    expect(unassigned).toEqual(['scripts/seed.ts']);
+    expect(unassigned).toEqual(['scripts/seed.ts', 'src/main.ts']);
   });
 
-  it('nest-module: the root module owns only its own folder; other module-less folders are left over', () => {
+  it('nest-module: the root module keeps only its module files; everything else it would claim is left over', () => {
     const files = [
       'src/app.module.ts',
       'src/common/clock.ts',
+      'src/main.setup.ts',
       'src/main.ts',
       'src/users/admin/admin.module.ts',
       'src/users/shared/x.ts',
@@ -164,10 +165,11 @@ describe('assignComponents: nest-module and file strategies', () => {
     ];
     const { componentOf, unassigned } = assign('nest-cjs', files, nest);
 
-    expect(componentOf.get('src/main.ts')?.id).toBe('dir:proj:(repo):src');
+    expect(componentOf.get('src/app.module.ts')?.id).toBe('dir:proj:(repo):src');
+    expect(componentOf.get('src/main.setup.ts')?.id).toBe('root:proj:(repo)');
     expect(componentOf.get('src/common/clock.ts')?.id).toBe('root:proj:(repo)');
     expect(componentOf.get('src/users/shared/x.ts')?.id).toBe('dir:proj:(repo):src/users');
-    expect(unassigned).toEqual(['src/common/clock.ts']);
+    expect(unassigned).toEqual(['src/common/clock.ts', 'src/main.setup.ts', 'src/main.ts']);
   });
 
   it('nest-module: a module beside package.json owns the project directory', () => {
